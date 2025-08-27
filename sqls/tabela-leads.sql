@@ -1,0 +1,105 @@
+create table public.leads (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  phone_number character varying(50) not null,
+  name character varying(100) null,
+  email character varying(100) null,
+  bill_value numeric(10, 2) null,
+  current_stage character varying(50) null default 'INITIAL_CONTACT'::character varying,
+  qualification_score integer null,
+  interested boolean null default true,
+  kommo_lead_id character varying(50) null,
+  created_at timestamp with time zone null default CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone null default CURRENT_TIMESTAMP,
+  qualification_status character varying(20) null default 'PENDING'::character varying,
+  last_interaction timestamp with time zone null default now(),
+  chosen_flow character varying(100) null,
+  google_event_link text null,
+  preferences jsonb null default '{}'::jsonb,
+  total_messages integer null default 0,
+  interaction_count integer null default 0,
+  processed_message_count integer null default 0,
+  constraint leads_pkey primary key (id),
+  constraint leads_phone_number_key unique (phone_number),
+  constraint leads_chosen_flow_check check (
+    (
+      (chosen_flow is null)
+      or (
+        (chosen_flow)::text = any (
+          (
+            array[
+              'Instalação Usina Própria'::character varying,
+              'Aluguel de Lote'::character varying,
+              'Compra com Desconto'::character varying,
+              'Usina Investimento'::character varying
+            ]
+          )::text[]
+        )
+      )
+    )
+  ),
+  constraint leads_qualification_score_check check (
+    (
+      (qualification_score >= 0)
+      and (qualification_score <= 100)
+    )
+  ),
+  constraint leads_qualification_status_check check (
+    (
+      (qualification_status)::text = any (
+        (
+          array[
+            'PENDING'::character varying,
+            'QUALIFIED'::character varying,
+            'NOT_QUALIFIED'::character varying
+          ]
+        )::text[]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_stage on public.leads using btree (current_stage) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_interested on public.leads using btree (interested) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_created on public.leads using btree (created_at desc) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_phone on public.leads using btree (phone_number) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_qualification_status on public.leads using btree (qualification_status) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_created_brin on public.leads using brin (created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_status_qualified on public.leads using btree (qualification_status, qualification_score) TABLESPACE pg_default
+where
+  ((qualification_status)::text = 'QUALIFIED'::text);
+
+create index IF not exists idx_leads_chosen_flow on public.leads using btree (chosen_flow) TABLESPACE pg_default
+where
+  (chosen_flow is not null);
+
+create index IF not exists idx_leads_google_event_link on public.leads using btree (google_event_link) TABLESPACE pg_default
+where
+  (google_event_link is not null);
+
+create index IF not exists idx_leads_preferences on public.leads using gin (preferences) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_total_messages on public.leads using btree (total_messages) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_interaction_count on public.leads using btree (interaction_count) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_email on public.leads using btree (email) TABLESPACE pg_default
+where
+  (email is not null);
+
+create index IF not exists idx_leads_updated on public.leads using btree (updated_at) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_qualification_status_new on public.leads using btree (qualification_status) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_bill_value on public.leads using btree (bill_value) TABLESPACE pg_default
+where
+  (bill_value > (0)::numeric);
+
+create trigger update_leads_updated_at BEFORE
+update on leads for EACH row
+execute FUNCTION update_updated_at_column ();
