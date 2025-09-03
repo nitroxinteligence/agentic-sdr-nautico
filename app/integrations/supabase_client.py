@@ -1,5 +1,5 @@
 """
-Cliente Supabase para o SDR IA SolarPrime
+Cliente Supabase para o SDR IA Náutico
 Gerencia todas as operações com o banco de dados
 """
 import asyncio

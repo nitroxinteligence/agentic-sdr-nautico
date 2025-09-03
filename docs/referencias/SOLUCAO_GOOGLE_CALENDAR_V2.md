@@ -45,7 +45,7 @@ self.service = self.oauth_handler.build_calendar_service()
 ```xml
 <global_closing_rule priority="MÁXIMA">
 Após score ≥7: SEMPRE oferecer agendamento proativamente
-"Perfeito {nome}! Vamos agendar uma reunião com Leonardo?"
+"Perfeito {nome}! Vamos agendar uma reunião para conhecer melhor os planos do Náutico?"
 </global_closing_rule>
 ```
 
@@ -69,7 +69,7 @@ Após score ≥7: SEMPRE oferecer agendamento proativamente
 # Agora é possível cancelar facilmente
 await team_coordinator.cancel_meeting_by_lead(
     lead_id="abc-123",
-    reason="Cliente solicitou"
+    reason="Torcedor solicitou"
 )
 ```
 
@@ -220,4 +220,4 @@ python test_google_calendar_v2.py
 - **Robustez Total**: Cancelamento e reagendamento funcionais
 - **ZERO COMPLEXIDADE**: Mantido em toda implementação
 
-O sistema SDR IA SolarPrime agora possui integração completa com Google Calendar, permitindo agendamento automático e proativo de reuniões com Google Meet! 🎉
+O sistema SDR IA Náutico agora possui integração completa com Google Calendar, permitindo agendamento automático e proativo de reuniões com Google Meet! 🎉

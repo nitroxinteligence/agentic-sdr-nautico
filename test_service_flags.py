@@ -119,7 +119,7 @@ class ServiceFlagTester:
             ('calendar', 'check_availability', {'date_request': '2024-01-15'}),
             ('crm', 'update_stage', {'stage': 'qualified'}),
             ('followup', 'schedule', {'hours': 24, 'message': 'Teste'}),
-            ('knowledge', 'search', {'query': 'energia solar'})
+            ('knowledge', 'search', {'query': 'programa de sócios'})
         ]
         
         for service_name, method_name, params in test_cases:

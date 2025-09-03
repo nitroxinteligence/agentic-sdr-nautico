@@ -1,11 +1,11 @@
 """
-Custom Exceptions for the SDR IA SolarPrime System
+Custom Exceptions for the SDR IA Náutico System
 Centralized exception handling for better error management
 """
 
 
 class BaseSDRException(Exception):
-    """Base exception for all SDR IA SolarPrime exceptions"""
+    """Base exception for all SDR IA Náutico exceptions"""
     def __init__(
             self, message: str, error_code: str = None, details: dict = None
     ):

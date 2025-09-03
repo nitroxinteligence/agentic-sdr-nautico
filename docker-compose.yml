@@ -3,7 +3,7 @@ version: '3.8'
 services:
   sdr-ia:
     build: .
-    container_name: sdr-ia-solarprime
+    container_name: sdr-ia-nautico
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -30,21 +30,27 @@ services:
       retries: 3
       start_period: 40s
 
-  # Redis opcional (descomente se quiser usar)
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: sdr-redis
-  #   restart: unless-stopped
-  #   ports:
-  #     - "6379:6379"
-  #   networks:
-  #     - sdr-network
-  #   volumes:
-  #     - redis-data:/data
+  # Redis OBRIGATÓRIO para follow-ups do Náutico
+  redis:
+    image: redis:7-alpine
+    container_name: sdr-redis-nautico
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - sdr-network
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   sdr-network:
     driver: bridge
 
-# volumes:
-#   redis-data:
+volumes:
+  redis-data:

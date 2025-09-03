@@ -1,6 +1,6 @@
 -- =====================================================
 -- POLÍTICAS RLS (ROW LEVEL SECURITY) PARA TODAS AS TABELAS
--- SDR IA Solar Prime - Configuração de Segurança
+-- SDR IA Náutico - Configuração de Segurança
 -- =====================================================
 
 -- Habilitar RLS em todas as tabelas

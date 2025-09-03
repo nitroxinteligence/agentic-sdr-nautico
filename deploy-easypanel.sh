@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Script de Deploy para EasyPanel
-# AGENTIC SDR - SOLAR PRIME v0.3
+# AGENTIC SDR - NÁUTICO v0.3
 
 echo "=========================================="
-echo "🚀 Deploy AGENTIC SDR - SOLAR PRIME"
+echo "🚀 Deploy AGENTIC SDR - NÁUTICO"
 echo "=========================================="
 
 # Cores para output
@@ -21,7 +21,7 @@ echo -e "${YELLOW}📌 Branch atual: $CURRENT_BRANCH${NC}"
 echo ""
 echo -e "${GREEN}Opção 1: Deploy direto do GitHub${NC}"
 echo "No EasyPanel, configure:"
-echo "  - Repository: https://github.com/nitroxinteligence/agentic-sdr-solar-prime"
+echo "  - Repository: https://github.com/nitroxinteligence/agentic-sdr-nautico"
 echo "  - Branch: main"
 echo "  - Build Type: Dockerfile"
 echo ""
@@ -44,9 +44,9 @@ echo ""
 echo -e "${GREEN}Opção 3: Deploy via git push (recomendado)${NC}"
 echo ""
 echo "1. No EasyPanel, crie um novo serviço:"
-echo "   - Nome: agentic-sdr-solar-prime"
+echo "   - Nome: agentic-sdr-nautico"
 echo "   - Tipo: GitHub App"
-echo "   - Repository: agentic-sdr-solar-prime"
+echo "   - Repository: agentic-sdr-nautico"
 echo "   - Branch: main"
 echo ""
 echo "2. Configure as variáveis de ambiente:"
@@ -112,7 +112,7 @@ echo -e "${YELLOW}📝 Instruções para corrigir o erro no EasyPanel:${NC}"
 echo ""
 echo "1. Delete o serviço 'sdr-api' atual"
 echo "2. Crie um novo serviço apontando para:"
-echo "   - Repo: https://github.com/nitroxinteligence/agentic-sdr-solar-prime"
+echo "   - Repo: https://github.com/nitroxinteligence/agentic-sdr-nautico"
 echo "   - Branch: main"
 echo "3. Configure todas as variáveis de ambiente"
 echo "4. Clique em Deploy"

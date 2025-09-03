@@ -1,5 +1,5 @@
 """
-Configurações centralizadas do SDR IA SolarPrime
+Configurações centralizadas do SDR IA Náutico
 """
 import os
 from typing import Optional, Dict, Any
@@ -114,6 +114,16 @@ class Settings(BaseSettings):
     )
     kommo_agent_user_id: int = Field(
         default=11031887, env="KOMMO_AGENT_USER_ID"
+    )
+    # Estágios específicos do Náutico
+    kommo_em_qualificacao_stage_id: int = Field(
+        default=89709590, env="KOMMO_EM_QUALIFICACAO_STAGE_ID"
+    )
+    kommo_qualificado_stage_id: int = Field(
+        default=89709591, env="KOMMO_QUALIFICADO_STAGE_ID"
+    )
+    kommo_desqualificado_stage_id: int = Field(
+        default=89709592, env="KOMMO_DESQUALIFICADO_STAGE_ID"
     )
     api_base_url: str = Field(
         default="http://localhost:8000", env="API_BASE_URL"

@@ -1,5 +1,5 @@
 """
-Centralized Error Handler for SDR IA SolarPrime System
+Centralized Error Handler for SDR IA Náutico System
 Handles different types of exceptions with appropriate responses
 """
 
@@ -22,7 +22,7 @@ from app.utils.logger import emoji_logger
 
 
 class ErrorHandler:
-    """Centralized error handler for the SDR IA SolarPrime system"""
+    """Centralized error handler for the SDR IA Náutico system"""
 
     def __init__(self):
         self.retry_policies = {

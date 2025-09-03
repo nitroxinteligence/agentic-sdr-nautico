@@ -7,7 +7,7 @@ Para que o agente de IA possa agendar reuniões no calendário correto, é essen
 1.  **Abra o Google Calendar** no seu navegador: [https://calendar.google.com/](https://calendar.google.com/)
 
 2.  **Encontre o Calendário na Barra Lateral:**
-    Na barra lateral esquerda, sob "Meus calendários", localize o calendário que você deseja que o agente utilize (por exemplo, "Agenda do Leonardo", "Reuniões SolarPrime", etc.).
+    Na barra lateral esquerda, sob "Meus calendários", localize o calendário que você deseja que o agente utilize (por exemplo, "Agenda Marina Campelo", "Reuniões Náutico", "Programa de Sócios", etc.).
 
     ![Localize o calendário na barra lateral](https://i.imgur.com/3g1J2eB.png)
 

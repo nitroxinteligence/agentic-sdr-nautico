@@ -60,7 +60,7 @@ class CRMServiceReal:
     def __init__(self):
         self.is_initialized = False
         self.base_url = (
-            settings.kommo_base_url or "https://leonardofvieira00.kommo.com"
+            settings.kommo_base_url or "https://nautico.kommo.com"
         )
         self.access_token = settings.kommo_long_lived_token
         self.pipeline_id = int(settings.kommo_pipeline_id or 11672895)
@@ -75,24 +75,24 @@ class CRMServiceReal:
         self.custom_fields = {
             "phone": None, "whatsapp": None, "bill_value": None,
             "valor_conta": None, "solution_type": None,
-            "solucao_solar": None, "calendar_link": None,
+            "plano_socio": None, "calendar_link": None,
             "google_calendar": None, "conversation_id": None
         }
         self.stage_map = {}
-        self.solution_type_values = {
-            "usina própria": 326358, "usina propria": 326358,
-            "instalação usina própria": 326358, "instalacao usina propria": 326358,
-            "fazenda solar": 326360, "consórcio": 326362,
-            "consorcio": 326362, "consultoria": 326364,
+        self.membership_plan_values = {
+            "sócio contribuinte": 326358, "socio contribuinte": 326358,
+            "sócio patrimonial": 326360, "socio patrimonial": 326360,
+            "sócio remido": 326362, "socio remido": 326362,
+            "sócio benemérito": 326364, "socio benemerito": 326364,
             "não definido": 326366, "nao definido": 326366,
-            "aluguel de lote": 1078618, "compra com desconto": 1078620,
-            "usina investimento": 1078622
+            "programa fidelidade": 1078618, "cartão torcedor": 1078620,
+            "plano especial": 1078622
         }
-        self.solution_type_options = {
-            "Usina Própria": 326358, "Instalação Usina Própria": 326358,
-            "Fazenda Solar": 326360, "Consórcio": 326362, "Consultoria": 326364,
-            "Não Definido": 326366, "Aluguel de Lote": 1078618,
-            "Compra com Desconto": 1078620, "Usina Investimento": 1078622
+        self.membership_plan_options = {
+            "Sócio Contribuinte": 326358, "Sócio Patrimonial": 326360,
+            "Sócio Remido": 326362, "Sócio Benemérito": 326364,
+            "Não Definido": 326366, "Programa Fidelidade": 1078618,
+            "Cartão Torcedor": 1078620, "Plano Especial": 1078622
         }
 
     async def _get_session(self):
@@ -156,13 +156,13 @@ class CRMServiceReal:
                         fields = await response.json()
                         field_mapping = {
                             "whatsapp": "whatsapp", "telefone": "phone",
-                            "phone": "phone", "valor conta energia": "bill_value",
-                            "valor_conta_energia": "bill_value",
-                            "valor da conta": "bill_value",
-                            "valor conta": "bill_value",
-                            "solução solar": "solution_type",
-                            "solucao solar": "solution_type",
-                            "tipo de solução": "solution_type",
+                            "phone": "phone", "interesse socio": "membership_interest",
+                            "interesse_socio": "membership_interest",
+                            "nivel interesse": "membership_interest",
+                            "interesse nivel": "membership_interest",
+                            "plano sócio": "membership_plan",
+                            "plano socio": "membership_plan",
+                            "tipo de plano": "membership_plan",
                             "link do evento no google calendar": "calendar_link",
                             "link do evento": "calendar_link",
                             "google calendar": "calendar_link",
@@ -318,14 +318,14 @@ class CRMServiceReal:
                     "field_id": self.custom_fields.get("bill_value", 392804),
                     "values": [{"value": lead_data["bill_value"]}]
                 })
-            if lead_data.get("chosen_flow"):
-                enum_id = self.solution_type_values.get(
-                    lead_data["chosen_flow"].lower()
+            if lead_data.get("chosen_membership_plan"):
+                enum_id = self.membership_plan_values.get(
+                    lead_data["chosen_membership_plan"].lower()
                 )
                 if enum_id:
                     custom_fields.append({
                         "field_id": self.custom_fields.get(
-                            "solution_type", 392808
+                            "membership_plan", 392808
                         ),
                         "values": [{"enum_id": enum_id}]
                     })
@@ -421,15 +421,15 @@ class CRMServiceReal:
             
             field_map = {
                 "bill_value": self.custom_fields.get("bill_value"),
-                "chosen_flow": self.custom_fields.get("solution_type"),
+                "chosen_membership_plan": self.custom_fields.get("membership_plan"),
                 "google_event_link": self.custom_fields.get("calendar_link")
             }
 
             for key, field_id in field_map.items():
                 if key in update_data and field_id:
                     value = update_data[key]
-                    if key == "chosen_flow":
-                        enum_id = self.solution_type_values.get(str(value).lower())
+                    if key == "chosen_membership_plan":
+                        enum_id = self.membership_plan_values.get(str(value).lower())
                         if enum_id:
                             custom_fields.append({"field_id": field_id, "values": [{"enum_id": enum_id}]})
                     else:

@@ -1,4 +1,4 @@
-# 🤖 Agentic SDR - SolarPrime
+# 🤖 Agentic SDR - Náutico
 
 <div align="center">
   
@@ -7,7 +7,7 @@
   ![License](https://img.shields.io/badge/license-MIT-green)
   ![Python](https://img.shields.io/badge/python-3.9+-blue)
   
-  **Sistema Inteligente de Vendas com IA para Energia Solar**
+  **Sistema Inteligente de SDR com IA para Programa de Sócios do Náutico**
   
   [Documentação](#-documentação) • [Instalação](#-instalação-rápida) • [Features](#-features) • [Deploy](#-deploy)
   
@@ -17,32 +17,32 @@
 
 ## 🌟 Sobre o Projeto
 
-**Agentic SDR - SolarPrime** é um sistema de automação de vendas alimentado por IA, especializado no setor de energia solar. Com 100% de funcionalidade operacional, o sistema combina um agente inteligente (Helen Vieira), processamento multimodal, um robusto sistema de `Tool Calling` e integrações `enterprise-ready` para revolucionar o processo de qualificação e vendas.
+**Agentic SDR - Náutico** é um sistema de automação de vendas alimentado por IA, especializado no programa de sócios do Clube Náutico Capibaribe. Com 100% de funcionalidade operacional, o sistema combina um agente inteligente (Marina Campelo), processamento multimodal, um robusto sistema de `Tool Calling` e integrações `enterprise-ready` para revolucionar o processo de conversão de torcedores em sócios.
 
 ### 🎯 Características Principais
 
 - **100% Funcional**: Sistema pronto para produção.
 - **Arquitetura STATELESS**: Garante escalabilidade, robustez e total isolamento entre conversas.
 - **Tool Calling System**: Zero alucinações em tarefas críticas. O agente usa ferramentas para interagir com sistemas externos, garantindo 100% de precisão.
-- **Ultra-Humanização**: A agente "Helen" possui uma personalidade empática, com identidade regional e inteligência emocional para criar conversas naturais.
-- **Multimodal**: Processa texto, imagem (OCR de contas de luz) e áudio (transcrição).
+- **Ultra-Humanização**: A agente "Marina Campelo" possui uma personalidade empática alvirrubra, com identidade pernambucana e inteligência emocional para criar conversas naturais.
+- **Multimodal**: Processa texto, imagem (OCR de comprovantes de pagamento) e áudio (transcrição).
 - **100% Configurável**: Todo o comportamento do sistema é controlado via arquivo `.env`.
 - **Thread-Safe**: Projetado para alta concorrência, capaz de gerenciar múltiplos leads simultaneamente sem conflitos.
 
 ## 🚀 Features
 
 ### 🤖 Agente Principal (AgenticSDRStateless)
-- **Helen Vieira**: Persona ultra-humanizada de uma consultora sênior da SolarPrime.
+- **Marina Campelo**: Persona ultra-humanizada de uma especialista em relacionamento alvirrubro do Náutico.
 - **Design Stateless**: Cada mensagem cria uma nova instância do agente, garantindo isolamento total.
 - **Análise de Contexto**: Compreende intenção, sentimento e extrai informações relevantes em tempo real.
-- **Processamento Multimodal**: Extrai dados de imagens (contas de luz) e transcreve mensagens de áudio.
-- **Sistema de Ferramentas**: Ativa serviços especializados (Calendário, CRM, Follow-up) de forma autônoma e precisa.
-- **Base de Conhecimento**: Consulta o Supabase para responder a perguntas técnicas e sobre objeções, garantindo consistência.
+- **Processamento Multimodal**: Extrai dados de imagens (comprovantes de pagamento) e transcreve mensagens de áudio.
+- **Sistema de Ferramentas**: Ativa serviços especializados (CRM, Follow-up, Knowledge) de forma autônoma e precisa.
+- **Base de Conhecimento**: Consulta o Supabase para responder a perguntas sobre planos de sócios e objeções, garantindo consistência.
 
 ### 🛠️ Serviços Integrados
 | Serviço | Função | Status |
 |---|---|---|
-| **CalendarService** | Agendamento, reagendamento e cancelamento no Google Calendar via OAuth 2.0, com criação de links do Google Meet. | ✅ 100% |
+| **PaymentValidation** | Validação automática de comprovantes de pagamento para programa de sócios via análise multimodal. | ✅ 100% |
 | **CRMService** | Sincronização completa com Kommo CRM: criação/atualização de leads, mudança de estágios e adição de tags. | ✅ 100% |
 | **FollowUpService** | Agendamento de mensagens de acompanhamento (follow-ups) através do Supabase e Redis. | ✅ 100% |
 | **MultimodalProcessor**| Processa mídias como áudio e imagens para extração de texto. | ✅ 100% |

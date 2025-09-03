@@ -1,7 +1,7 @@
 # EasyPanel Deployment Configuration
-# AGENTIC SDR - SOLAR PRIME v0.3
+# AGENTIC SDR - NÁUTICO v0.3
 
-name: agentic-sdr-solar-prime
+name: agentic-sdr-nautico
 services:
   app:
     type: app
@@ -29,7 +29,7 @@ services:
       # - GOOGLE_CALENDAR_ID=
       
     domains:
-      - host: agentic-sdr.yourdomain.com
+      - host: sdr-nautico.yourdomain.com
         port: 8000
     resources:
       memoryLimit: 2048

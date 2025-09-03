@@ -19,7 +19,7 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "service": "SDR IA SolarPrime"
+        "service": "SDR IA Náutico"
     }
 
 
@@ -29,7 +29,7 @@ async def health_endpoint():
     return {
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "service": "SDR IA SolarPrime"
+        "service": "SDR IA Náutico"
     }
 
 
@@ -237,18 +237,18 @@ async def service_info():
     from app.config import settings
 
     return {
-        "service": "SDR IA SolarPrime",
+        "service": "SDR IA Náutico",
         "version": "0.2.0",
         "environment": settings.ENVIRONMENT,
-        "agent": "Helen Vieira",
-        "company": "Solar Prime Boa Viagem",
+        "agent": "Marina Campelo",
+        "company": "Clube Náutico Capibaribe",
         "features": {
             "whatsapp": True,
             "ai_qualification": True,
-            "google_calendar": bool(settings.GOOGLE_SERVICE_ACCOUNT_PATH),
+            "payment_validation": True,
             "kommo_crm": bool(settings.KOMMO_LONG_LIVED_TOKEN),
             "follow_up": True,
-            "reports": True
+            "membership_program": True
         },
         "business_hours": {
             "start": settings.BUSINESS_HOURS_START,

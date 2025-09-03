@@ -1,6 +1,6 @@
-# 📁 ARQUITETURA ATUAL - SDR IA SolarPrime v0.2
+# 📁 ARQUITETURA ATUAL - SDR IA Náutico v0.2
 
-**Data:** 07/08/2025  
+**Data:** 03/09/2025  
 **Status:** Documentação da estrutura funcional atual  
 **Princípio:** "O SIMPLES FUNCIONA" - Sistema estável não se mexe
 
@@ -8,10 +8,10 @@
 
 ## 🎯 VISÃO GERAL
 
-Sistema de SDR (Sales Development Representative) inteligente para energia solar usando WhatsApp Business.
+Sistema de SDR (Sales Development Representative) inteligente para programa de sócios do Náutico usando WhatsApp Business.
 
 **CORE FUNCIONAL:**
-- ✅ Helen Vieira: Agente conversacional especialista em energia solar
+- ✅ Marina Campelo: Agente conversacional especialista em relacionamento com torcida do Náutico
 - ✅ Qualificação automática de leads
 - ✅ Agendamento Google Calendar
 - ✅ Follow-ups inteligentes
@@ -33,14 +33,14 @@ api/
 ### `/agents/` - Cérebro do sistema
 ```
 agents/
-└── agentic_sdr.py      # 🧠 AGENTE PRINCIPAL (Helen Vieira)
+└── agentic_sdr.py      # 🧠 AGENTE PRINCIPAL (Marina Campelo)
                         # Orquestra todo o fluxo de qualificação
 ```
 
 ### `/prompts/` - Personalidade do agente
 ```
 prompts/
-├── prompt-agente.md         # 🎭 Personalidade Helen Vieira (20K chars)
+├── prompt-agente.md         # 🎭 Personalidade Marina Campelo (20K chars)
 └── prompt-agente-backup.md  # Backup da versão anterior
 ```
 
@@ -143,9 +143,9 @@ graph TD
 
 | Componente | Status | Observações |
 |------------|--------|-------------|
-| **Helen (agentic_sdr.py)** | ✅ 100% | Funcional após correções |
+| **Marina (agentic_sdr.py)** | ✅ 100% | Funcional após correções |
 | **Reações/Replies** | ✅ 100% | Sistema implementado |
-| **Follow-ups personalizados** | ✅ 100% | Helen + contexto |
+| **Follow-ups personalizados** | ✅ 100% | Marina + contexto |
 | **Google Calendar** | ✅ 100% | Lembretes personalizados |
 | **Kommo CRM** | ✅ 95% | Funcional, consolidar arquivos |
 | **PostgreSQL cleanup** | ✅ 100% | Apenas Supabase |

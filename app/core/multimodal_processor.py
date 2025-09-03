@@ -304,9 +304,9 @@ class MultimodalProcessor:
                 analysis["document_type"] = "boleto"
                 analysis["is_bill"] = True
             elif any(word in text_lower for word in [
-                "energia", "kwh", "consumo", "fatura"
+                "mensalidade", "náutico", "sócio", "contribuição"
             ]):
-                analysis["document_type"] = "conta_energia"
+                analysis["document_type"] = "mensalidade_nautico"
                 analysis["is_bill"] = True
 
             if analysis["is_bill"]:
@@ -315,19 +315,38 @@ class MultimodalProcessor:
 
     def _analyze_image_content(self, text: str) -> Dict[str, Any]:
         """
-        Análise do conteúdo da imagem, agora usando a lógica de extração robusta.
+        Análise do conteúdo da imagem, incluindo validação para comprovantes de pagamento do Náutico.
         """
         analysis = {
             "has_text": bool(text and text.strip()),
             "is_bill": False,
-            "bill_value": None
+            "is_payment_receipt": False,
+            "bill_value": None,
+            "payment_value": None,
+            "is_valid_nautico_payment": False,
+            "payer_name": None
         }
+        
         if text:
-            bill_keywords = ["energia", "kwh", "consumo", "fatura", "conta"]
             text_lower = text.lower()
+            
+            # Detectar se é mensalidade do Náutico
+            bill_keywords = ["mensalidade", "náutico", "sócio", "contribuição", "clube"]
             if any(keyword in text_lower for keyword in bill_keywords):
                 analysis["is_bill"] = True
                 analysis["bill_value"] = self._extract_bill_value_from_text(text)
+            
+            # Detectar se é comprovante de pagamento
+            payment_keywords = ["comprovante", "pix", "transferência", "pagamento", "débito", "crédito", "transação"]
+            if any(keyword in text_lower for keyword in payment_keywords):
+                analysis["is_payment_receipt"] = True
+                analysis["payment_value"] = self._extract_payment_value_from_text(text)
+                analysis["payer_name"] = self._extract_payer_name_from_text(text)
+                
+                # Validar se é um valor válido do programa de sócios do Náutico
+                if analysis["payment_value"]:
+                    analysis["is_valid_nautico_payment"] = self._is_valid_nautico_payment_value(analysis["payment_value"])
+        
         return analysis
 
     def _extract_bill_value_from_text(self, text: str) -> Optional[float]:
@@ -391,6 +410,74 @@ class MultimodalProcessor:
             f" selecionado: R$ {selected_value:.2f}"
         )
         return selected_value
+
+    def _extract_payment_value_from_text(self, text: str) -> Optional[float]:
+        """
+        Extração de valor de comprovante de pagamento.
+        """
+        import re
+        
+        # Buscar por padrões específicos de valores em comprovantes
+        payment_patterns = [
+            r"valor\s*(?:da\s*)?(?:transação|transferência|pagamento)[:\s]*R?\$?\s*(\d{1,3}(?:\.\d{3})*,\d{2})",
+            r"R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})",
+            r"(\d{1,3}(?:\.\d{3})*,\d{2})",
+        ]
+        
+        all_values = []
+        for pattern in payment_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                try:
+                    value_str = match.replace(".", "").replace(",", ".")
+                    value = float(value_str)
+                    if 1 <= value <= 50000:  # Range amplo para valores de pagamento
+                        all_values.append(value)
+                except Exception:
+                    pass
+        
+        if all_values:
+            # Retornar o primeiro valor encontrado (geralmente é o valor principal)
+            return all_values[0]
+        
+        return None
+
+    def _extract_payer_name_from_text(self, text: str) -> Optional[str]:
+        """
+        Extração de nome do pagador do comprovante.
+        """
+        import re
+        
+        # Padrões para encontrar nomes em comprovantes
+        name_patterns = [
+            r"(?:pagador|remetente|de)[:\s]*([A-ZÁÊÇÕ][a-záêçõ\s]+[A-ZÁÊÇÕ])",
+            r"origem[:\s]*([A-ZÁÊÇÕ][a-záêçõ\s]+)",
+            r"nome[:\s]*([A-ZÁÊÇÕ][a-záêçõ\s]+)",
+        ]
+        
+        for pattern in name_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            if matches:
+                name = matches[0].strip()
+                # Validar se parece um nome (pelo menos 2 palavras)
+                if len(name.split()) >= 2 and len(name) <= 50:
+                    return name
+        
+        return None
+
+    def _is_valid_nautico_payment_value(self, value: float) -> bool:
+        """
+        Valida se o valor está na lista de valores válidos do programa de sócios do Náutico.
+        """
+        valid_values = [399.90, 99.90, 39.90, 24.90, 79.90, 3000.00, 1518.00, 12.90, 11.00, 50.00, 10.00]
+        
+        # Considerar uma pequena margem de erro para valores decimais
+        tolerance = 0.01
+        for valid_value in valid_values:
+            if abs(value - valid_value) <= tolerance:
+                return True
+        
+        return False
 
     def get_supported_types(self) -> List[str]:
         """Retorna tipos de mídia suportados"""

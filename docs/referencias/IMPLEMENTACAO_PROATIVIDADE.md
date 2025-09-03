@@ -2,7 +2,7 @@
 
 ## ✅ Resumo da Implementação
 
-O agente SDR IA SolarPrime agora é **100% PROATIVO** no agendamento de reuniões após qualificação bem-sucedida.
+O agente SDR IA Náutico agora é **100% PROATIVO** no agendamento de reuniões após qualificação bem-sucedida.
 
 ### 🎯 Problema Resolvido
 - **ANTES**: Agente esperava palavras-chave específicas para agendar
@@ -13,7 +13,7 @@ O agente SDR IA SolarPrime agora é **100% PROATIVO** no agendamento de reuniõe
 #### 1. **Atualização do Prompt (prompt-agente.md)**
 - ✅ Adicionada `<global_closing_rule priority="MÁXIMA">`
 - ✅ Regra obrigatória: score ≥7 → agendamento automático
-- ✅ Frases diretas: "Vamos agendar uma reunião com Leonardo?"
+- ✅ Frases diretas: "Vamos agendar uma reunião para conhecer os planos do Náutico?"
 - ✅ NUNCA esperar o lead pedir agendamento
 - ✅ Proatividade OBRIGATÓRIA após qualificação
 
@@ -55,14 +55,14 @@ O agente SDR IA SolarPrime agora é **100% PROATIVO** no agendamento de reuniõe
 #### ANTES (Reativo):
 ```
 Lead: "Perfeito! Faz muito sentido"
-Helen: "Que bom que gostou! Alguma dúvida sobre o processo?"
+Marina: "Que bom que gostou! Alguma dúvida sobre o programa de sócios?"
 [Esperava lead pedir agendamento]
 ```
 
 #### DEPOIS (Proativo):
 ```
 Lead: "Perfeito! Faz muito sentido"
-Helen: "Perfeito João! Conseguimos te ajudar. Vamos agendar uma reunião com Leonardo?"
+Marina: "Perfeito João! Conseguimos te ajudar. Vamos agendar uma reunião para conhecer os planos?"
 [Score: 8, Stage: closing → BOOST automático → Agendamento]
 ```
 
@@ -85,14 +85,14 @@ Helen: "Perfeito João! Conseguimos te ajudar. Vamos agendar uma reunião com Le
 - ✅ **Proatividade Garantida**: Agente sempre oferece agendamento após qualificação
 - ✅ **Flexibilidade de Linguagem**: Funciona com variações naturais
 - ✅ **Score Inteligente**: Considera contexto completo, não só palavras-chave
-- ✅ **Closing Eficiente**: Reduz perda de leads qualificados
+- ✅ **Closing Eficiente**: Reduz perda de torcedores qualificados
 - ✅ **Compatibilidade**: Mantém funcionamento de todos os fluxos (A, B, C, D)
 
 ### 🚀 Resultado Final
 
 **O AGENTE AGORA É 100% PROATIVO NO AGENDAMENTO!**
 
-Não depende mais de o lead pedir explicitamente para marcar reunião. Após qualificação bem-sucedida (score ≥7), automaticamente oferece agendamento com Leonardo, aumentando significativamente a taxa de conversão.
+Não depende mais do torcedor pedir explicitamente para marcar reunião. Após qualificação bem-sucedida (score ≥7), automaticamente oferece agendamento para apresentar os planos do Náutico, aumentando significativamente a taxa de conversão.
 
 ---
 

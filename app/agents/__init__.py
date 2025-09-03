@@ -1,5 +1,5 @@
 """
-Módulo de Agentes - SDR IA SolarPrime v0.3
+Módulo de Agentes - SDR IA Náutico v0.3
 Arquitetura Stateless
 """
 

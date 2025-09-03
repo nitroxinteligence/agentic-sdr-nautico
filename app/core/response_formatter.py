@@ -21,8 +21,8 @@ class ResponseFormatter:
         """
         if not response:
             return (
-                "<RESPOSTA_FINAL>Oi! Como posso ajudar você com energia solar? "
-                "☀️</RESPOSTA_FINAL>"
+                "<RESPOSTA_FINAL>Opa! Tudo joia? Aqui é Marina Campelo do Náutico. "
+                "Como posso te ajudar? ⚪🔴</RESPOSTA_FINAL>"
             )
         
         # CRÍTICO: Detecta se a resposta contém uma tool e NÃO a processa
@@ -76,8 +76,8 @@ class ResponseFormatter:
                 "Resposta vazia após limpeza - usando fallback"
             )
             clean_response = (
-                "Oi! Tudo bem? Me chamo Helen Vieira, sou consultora da "
-                "Solarprime. Como posso te chamar?"
+                "Opa! Tudo joia? Me chamo Marina Campelo, sou especialista em "
+                "relacionamento com a torcida do Náutico. Como posso te chamar?"
             )
 
         formatted = f"<RESPOSTA_FINAL>{clean_response}</RESPOSTA_FINAL>"
@@ -136,20 +136,19 @@ class ResponseFormatter:
         """
         fallbacks = {
             "início": (
-                "Oi! Tudo bem? Me chamo Helen Vieira, sou consultora da "
-                "Solarprime e irei realizar o seu atendimento. Antes de "
+                "Opa! Tudo joia? Me chamo Marina Campelo, sou especialista em "
+                "relacionamento com a torcida do Náutico e irei realizar o seu atendimento. Antes de "
                 "começarmos, como posso te chamar?"
             ),
             "nome_coletado": (
-                "Perfeito! Hoje na Solarprime temos 4 modelos de soluções "
-                "energéticas. Qual valor você paga atualmente na sua conta de luz?"
+                "Perfeito! Hoje no programa Sócio Mais Fiel do Nordeste temos "
+                "vários planos incríveis. Qual sua relação com o Timba?"
             ),
             "valor_coletado": (
-                "Excelente! Com esse valor consigo uma economia muito "
-                "interessante para você. Podemos agendar uma conversa rápida "
-                "para eu te mostrar os números?"
+                "Massa! Vejo que você tem paixão alvirrubra mesmo. Vou te mostrar "
+                "como fazer parte da nossa família de sócios!"
             ),
-            "default": "Como posso ajudar você com energia solar hoje? ☀️"
+            "default": "Como posso ajudar você com o programa de sócios do Náutico hoje? ⚪🔴"
         }
         response = fallbacks.get(context, fallbacks["default"])
         return f"<RESPOSTA_FINAL>{response}</RESPOSTA_FINAL>"

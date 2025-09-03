@@ -25,7 +25,7 @@ class FollowUpServiceReal:
         )
         self.api_key = settings.evolution_api_key
         self.instance_name = (
-            settings.evolution_instance_name or "SDR IA SolarPrime"
+            settings.evolution_instance_name or "SDR IA Náutico"
         )
         self.headers = {
             "apikey": self.api_key,

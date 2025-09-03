@@ -1,6 +1,6 @@
-# 🚀 Release Notes - SDR IA SolarPrime v0.3
+# 🚀 Release Notes - SDR IA Náutico v0.3
 
-**Data**: 15/08/2025  
+**Data**: 03/09/2025  
 **Versão**: v0.3 - Pure Stateless Architecture  
 **Status**: ✅ Production Ready
 
@@ -186,10 +186,10 @@ python test_sistema_completo_v03.py
 ## 📞 Suporte
 
 Para problemas ou dúvidas:
-- 📧 Email: suporte@solarprime.com.br
+- 📧 Email: suporte@nautico.com.br
 - 📱 WhatsApp: +55 11 99999-9999
-- 🐛 Issues: https://github.com/nitroxinteligence/agentic-sdr-solar-prime/issues
+- 🐛 Issues: https://github.com/nitroxinteligence/agentic-sdr-nautico/issues
 
 ---
 
-**SDR IA SolarPrime v0.3** - Mais rápido, mais limpo, totalmente stateless! 🚀
+**SDR IA Náutico v0.3** - Mais rápido, mais limpo, totalmente stateless! 🚀

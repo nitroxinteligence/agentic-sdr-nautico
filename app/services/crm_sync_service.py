@@ -12,10 +12,10 @@ class CRMDataSync:
     def __init__(self):
         # Mapeamento direto do valor do campo 'chosen_flow' para a tag correspondente.
         self.solution_to_tag_map = {
-            "Instalação Usina Própria": "Instalação Usina Própria",
-            "Aluguel de Lote": "Aluguel de Lote",
-            "Compra com Desconto": "Compra com Desconto",
-            "Usina Investimento": "Usina Investimento",
+            "Sócio Contribuinte": "Sócio Contribuinte",
+            "Sócio Patrimonial": "Sócio Patrimonial",
+            "Sócio Remido": "Sócio Remido",
+            "Sócio Benemérito": "Sócio Benemérito",
         }
 
     def get_update_payload(
@@ -32,7 +32,7 @@ class CRMDataSync:
         update_payload = {}
         tags_to_add = []
 
-        # 1. Sincronizar "SOLUÇAO SOLAR" e a tag correspondente
+        # 1. Sincronizar "PLANO DE SÓCIOS" e a tag correspondente
         chosen_flow = lead_info.get("chosen_flow")
         if chosen_flow:
             update_payload["chosen_flow"] = chosen_flow
@@ -45,10 +45,10 @@ class CRMDataSync:
         if name:
             update_payload["name"] = name
 
-        # 3. Sincronizar "VALOR CONTA DE ENERGIA"
-        bill_value = lead_info.get("bill_value")
-        if bill_value:
-            update_payload["bill_value"] = bill_value
+        # 3. Sincronizar "INTERESSE EM SÓCIOS"
+        membership_interest = lead_info.get("membership_interest")
+        if membership_interest:
+            update_payload["membership_interest"] = membership_interest
         
         # 4. Sincronizar "WHATSAPP" (se necessário, embora geralmente seja pego no início)
         phone = lead_info.get("phone_number")

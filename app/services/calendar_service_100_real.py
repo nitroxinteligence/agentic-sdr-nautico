@@ -339,39 +339,40 @@ class CalendarServiceReal:
             return {"success": False, "error": "lock_not_acquired", "message": "Este horário acabou de ser agendado por outra pessoa. Por favor, escolha outro."}
 
         try:
-            description_template = """☀️ REUNIÃO SOLARPRIME - ECONOMIA COM ENERGIA SOLAR
+            description_template = """⚪🔴 REUNIÃO NÁUTICO - PROGRAMA DE SÓCIOS
 
 Olá {lead_name}!
 
-É com grande satisfação que confirmamos nossa reunião para apresentar como a SolarPrime pode transformar sua conta de energia em um investimento inteligente.
+É com grande satisfação que confirmamos nossa reunião para apresentar como você pode fazer parte da família alvirrubra como sócio do Clube Náutico Capibaribe.
 
-Somos líderes no setor de energia solar em Pernambuco, com mais de 12 anos de experiência e milhares de clientes satisfeitos. Nossa missão é democratizar o acesso à energia limpa e proporcionar economia real de até 90% na conta de luz.
+Somos o clube mais tradicional de Pernambuco, com mais de 120 anos de história e milhares de torcedores apaixonados. Nossa missão é fortalecer o Timão e oferecer aos sócios os melhores benefícios e experiências alvirrubrAS.
 
 ✅ O QUE VAMOS APRESENTAR:
-• Análise personalizada da sua conta de energia
-• Simulação de economia com nossos 4 modelos de negócio
-• Opções de financiamento que cabem no seu bolso
-• Garantias e benefícios exclusivos SolarPrime
-• Retorno do investimento em média de 3 anos
+• Análise personalizada do seu perfil de torcedor
+• Apresentação dos nossos 4 planos de sócio
+• Sócio Contribuinte - benefícios básicos e desconto em jogos
+• Sócio Patrimonial - acesso a áreas VIP e eventos exclusivos
+• Sócio Remido - prioridade total e benefícios vitalícios
+• Sócio Benemérito - status máximo e reconhecimento especial
 
 ✅ NOSSOS DIFERENCIAIS:
-• Instalação própria de usina - economia de até 90%
-• Aluguel de lote - sua usina em nosso terreno
-• Compra com desconto - economia imediata de 20%
-• Usina de investimento - renda passiva com energia solar
+• Mais de 300 estabelecimentos parceiros com descontos
+• Acesso prioritário a ingressos em todos os jogos
+• Produtos oficiais com preços especiais
+• Programa Sócio Mais Fiel do Nordeste
 
-Agradecemos pela confiança em escolher a SolarPrime para cuidar da sua economia energética. Leonardo Ferraz, nosso especialista, está ansioso para mostrar como podemos proteger você dos constantes aumentos da energia elétrica.
+Agradecemos pela paixão alvirrubra e pelo interesse em fazer parte da nossa família. Nossa equipe está ansiosa para mostrar como você pode viver intensamente sua paixão pelo Timão sendo sócio do Náutico.
 
 ✨ Desejamos uma excelente reunião e estamos confiantes de que será o início de uma parceria de sucesso!
 
 Atenciosamente,
-Equipe SolarPrime
-☀️ Transformando Sol em Economia"""
+Equipe Náutico
+⚪🔴 Timbu Eterno!"""
 
             event_description = description_template.format(lead_name=lead_info.get("name", "Cliente"))
 
             event = {
-                'summary': f'☀️ Reunião SolarPrime com {lead_info.get("name", "Cliente")}',
+                'summary': f'⚪🔴 Reunião Náutico com {lead_info.get("name", "Torcedor")}',
                 'description': event_description,
                 'start': {'dateTime': aware_meeting_datetime.isoformat(), 'timeZone': 'America/Sao_Paulo'},
                 'end': {'dateTime': aware_meeting_end.isoformat(), 'timeZone': 'America/Sao_Paulo'},

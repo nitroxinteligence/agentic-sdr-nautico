@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SDR IA Solar Prime - Aplicação Principal
+SDR IA Náutico - Aplicação Principal
 Ponto de entrada da aplicação FastAPI
 """
 
@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     
     # Startup
     start_time = time.time()
-    emoji_logger.system_start("SDR IA Solar Prime v0.3")
+    emoji_logger.system_start("SDR IA Náutico v0.3")
     
     try:
         # Conectar ao Redis (opcional em desenvolvimento)
@@ -97,6 +97,11 @@ async def lifespan(app: FastAPI):
         # FollowUp Services prontos
         emoji_logger.system_ready("FollowUp Services")
         
+        # Aviso sobre workers de follow-up (se Redis disponível)
+        if redis_client.redis_client:
+            emoji_logger.system_info("📌 IMPORTANTE: Para follow-ups do Náutico funcionarem, execute: python start_workers.py")
+            emoji_logger.system_info("📌 Os workers processam as filas do Redis para envio automatizado")
+        
         # Pré-aquecer o sistema
         emoji_logger.system_info("🔥 Pré-aquecendo AgenticSDR (Stateless)...")
         warmup_agent = AgenticSDRStateless()
@@ -104,7 +109,7 @@ async def lifespan(app: FastAPI):
         
         # Sistema pronto
         startup_time = time.time() - start_time
-        emoji_logger.system_ready("SDR IA Solar Prime", startup_time=startup_time)
+        emoji_logger.system_ready("SDR IA Náutico", startup_time=startup_time)
         
         yield
         
@@ -136,7 +141,7 @@ async def lifespan(app: FastAPI):
 
 # Criar aplicação FastAPI
 app = FastAPI(
-    title="SDR IA Solar Prime",
+    title="SDR IA Náutico",
     description="Sistema de IA para automação de vendas via WhatsApp",
     version="0.3.0",
     lifespan=lifespan
@@ -162,10 +167,10 @@ app.include_router(google_auth_router, tags=["auth"])
 async def root():
     """Endpoint raiz da aplicação"""
     return {
-        "message": "SDR IA Solar Prime",
+        "message": "SDR IA Náutico",
         "version": "0.3.0",
         "status": "running",
-        "agent": "Helen Vieira"
+        "agent": "Marina Campelo"
     }
 
 if __name__ == "__main__":

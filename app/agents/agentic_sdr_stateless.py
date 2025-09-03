@@ -232,10 +232,29 @@ class AgenticSDRStateless:
             emoji_logger.multimodal_event(f"📎 Mídia do tipo {mime_type} adicionada.")
             media_result = await self.multimodal.process_media(media_data)
             if media_result.get("success"):
-                extracted_bill_value = media_result.get("analysis", {}).get("bill_value")
-                if extracted_bill_value:
-                    lead_info['bill_value'] = extracted_bill_value
-                    emoji_logger.system_info(f"Valor da conta R${extracted_bill_value} extraído e injetado no lead_info.")
+                analysis = media_result.get("analysis", {})
+                
+                # Processar comprovante de pagamento do Náutico
+                extracted_payment_value = analysis.get("payment_value")
+                if extracted_payment_value:
+                    lead_info['membership_interest'] = 8  # Alto interesse por enviar comprovante
+                    emoji_logger.system_info(f"Pagamento de R${extracted_payment_value} detectado - interesse alto definido.")
+                
+                # Processar comprovante de pagamento do Náutico
+                if analysis.get("is_payment_receipt"):
+                    payment_value = analysis.get("payment_value")
+                    payer_name = analysis.get("payer_name")
+                    is_valid_payment = analysis.get("is_valid_nautico_payment", False)
+                    
+                    # Armazenar informações do pagamento no lead_info
+                    lead_info['payment_value'] = payment_value
+                    lead_info['payer_name'] = payer_name
+                    lead_info['is_valid_nautico_payment'] = is_valid_payment
+                    
+                    emoji_logger.multimodal_event(
+                        f"💰 Comprovante detectado - Valor: R${payment_value}, "
+                        f"Pagador: {payer_name}, Válido: {is_valid_payment}"
+                    )
             else:
                 emoji_logger.system_warning(f"Falha na extração de texto da mídia: {media_result.get('message')}")
 
@@ -421,7 +440,7 @@ class AgenticSDRStateless:
         # Lembrete de 24 horas
         message_24h = (
             f"Oi {lead_name}! Tudo bem? Passando para confirmar sua reunião de amanhã às "
-            f"{meeting_date_time.strftime('%H:%M')} com o Leonardo. Aqui está o link da reunião: "
+            f"{meeting_date_time.strftime('%H:%M')} para conhecer os planos do Náutico. Aqui está o link da reunião: "
             f"{meet_link} Está tudo certo para você?"
         )
         await self.followup_service.schedule_followup(
@@ -434,7 +453,7 @@ class AgenticSDRStateless:
 
         # Lembrete de 2 horas
         message_2h = (
-            f"{lead_name}, Sua reunião com o Leonardo é daqui a 2 horas! Te esperamos às "
+            f"{lead_name}, Sua reunião sobre o programa de sócios é daqui a 2 horas! Te esperamos às "
             f"{meeting_date_time.strftime('%H:%M')}! Link: {meet_link}"
         )
         await self.followup_service.schedule_followup(
@@ -614,7 +633,7 @@ class AgenticSDRStateless:
                 hours = int(params.get("hours", 24))
                 message = params.get(
                     "message",
-                    "Oi! Tudo bem? Ainda tem interesse em energia solar?"
+                    "Oi! Tudo bem? Ainda tem interesse em ser sócio do Náutico?"
                 )
                 return await self.followup_service.schedule_followup(
                     phone_number=lead_info.get("phone_number"),

@@ -3,7 +3,7 @@ create table public.leads (
   phone_number character varying(50) not null,
   name character varying(100) null,
   email character varying(100) null,
-  bill_value numeric(10, 2) null,
+  membership_interest integer null,
   current_stage character varying(50) null default 'INITIAL_CONTACT'::character varying,
   qualification_score integer null,
   interested boolean null default true,
@@ -27,10 +27,10 @@ create table public.leads (
         (chosen_flow)::text = any (
           (
             array[
-              'Instalação Usina Própria'::character varying,
-              'Aluguel de Lote'::character varying,
-              'Compra com Desconto'::character varying,
-              'Usina Investimento'::character varying
+              'Sócio Contribuinte'::character varying,
+              'Sócio Patrimonial'::character varying,
+              'Sócio Remido'::character varying,
+              'Sócio Benemérito'::character varying
             ]
           )::text[]
         )
@@ -96,9 +96,9 @@ create index IF not exists idx_leads_updated on public.leads using btree (update
 
 create index IF not exists idx_leads_qualification_status_new on public.leads using btree (qualification_status) TABLESPACE pg_default;
 
-create index IF not exists idx_leads_bill_value on public.leads using btree (bill_value) TABLESPACE pg_default
+create index IF not exists idx_leads_membership_interest on public.leads using btree (membership_interest) TABLESPACE pg_default
 where
-  (bill_value > (0)::numeric);
+  (membership_interest > 0);
 
 create trigger update_leads_updated_at BEFORE
 update on leads for EACH row

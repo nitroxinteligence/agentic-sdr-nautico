@@ -44,10 +44,10 @@ class LeadManager:
         lead_info.setdefault("name", None)
         lead_info.setdefault("phone_number", None)
         lead_info.setdefault("email", None)
-        lead_info.setdefault("bill_value", None)
+        lead_info.setdefault("membership_interest", None)
         lead_info.setdefault("qualification_score", 0)
         lead_info.setdefault("current_stage", "INITIAL_CONTACT")
-        lead_info.setdefault("chosen_flow", None)
+        lead_info.setdefault("chosen_membership_plan", None)
         lead_info.setdefault("preferences", {}).setdefault("interests", [])
         lead_info.setdefault("preferences", {}).setdefault("objections", [])
 
@@ -81,17 +81,17 @@ class LeadManager:
                         lead_info["email"] = email
                         emoji_logger.system_debug(f"Email extraído do histórico: '{email}'")
 
-                if not lead_info.get("bill_value"):
-                    value = self._extract_bill_value(content_lower)
-                    if value:
-                        lead_info["bill_value"] = value
-                        emoji_logger.system_debug(f"Valor da conta extraído do histórico: '{value}'")
+                if not lead_info.get("membership_interest"):
+                    interest = self._extract_membership_interest(content_lower)
+                    if interest:
+                        lead_info["membership_interest"] = interest
+                        emoji_logger.system_debug(f"Interesse em sócios extraído do histórico: '{interest}'")
 
-            if not lead_info.get("chosen_flow"):
-                chosen_flow = self._extract_chosen_flow(content_lower)
-                if chosen_flow:
-                    lead_info["chosen_flow"] = chosen_flow
-                    emoji_logger.system_debug(f"Fluxo escolhido detectado no histórico: '{chosen_flow}'")
+            if not lead_info.get("chosen_membership_plan"):
+                chosen_plan = self._extract_chosen_membership_plan(content_lower)
+                if chosen_plan:
+                    lead_info["chosen_membership_plan"] = chosen_plan
+                    emoji_logger.system_debug(f"Plano de sócio escolhido detectado no histórico: '{chosen_plan}'")
 
         if self.scoring_enabled:
             lead_info["qualification_score"] = self.calculate_qualification_score(lead_info)
@@ -105,15 +105,15 @@ class LeadManager:
     ) -> int:
         """Calcula score de qualificação SIMPLES"""
         score = 0.0
-        bill_value = lead_info.get("bill_value", 0)
-        if bill_value:
-            if bill_value >= 1000:
+        membership_interest = lead_info.get("membership_interest", 0)
+        if membership_interest:
+            if membership_interest >= 8:  # Muito interessado (escala 1-10)
                 score += 40
-            elif bill_value >= 700:
+            elif membership_interest >= 6:
                 score += 30
-            elif bill_value >= 500:
+            elif membership_interest >= 4:
                 score += 20
-            elif bill_value >= 300:
+            elif membership_interest >= 2:
                 score += 10
 
         if lead_info.get("name"):
@@ -235,7 +235,7 @@ class LeadManager:
         blacklist = [
             'oi', 'ola', 'sim', 'nao', 'ok', 'tudo', 'bem', 'bom', 'dia', 
             'tarde', 'noite', 'quero', 'gostaria', 'preciso', 'pode', 'claro',
-            'conta', 'valor', 'energia', 'obrigado', 'obrigada', 'tchau', 
+            'conta', 'valor', 'socio', 'obrigado', 'obrigada', 'tchau', 
             'ate', 'logo', 'falar', 'conversar', 'legal', 'show', 'perfeito'
         ]
         
@@ -261,7 +261,7 @@ class LeadManager:
             'a', 'o', 'e', 'de', 'do', 'da', 'dos', 'das', 'com', 'em',
             'para', 'por', 'oi', 'ola', 'sim', 'nao', 'ok', 'tudo', 'bem',
             'bom', 'dia', 'tarde', 'noite', 'quero', 'gostaria', 'preciso',
-            'pode', 'claro', 'conta', 'valor', 'energia'
+            'pode', 'claro', 'conta', 'valor', 'socio'
         ]
         for word in words:
             word_lower = word.lower()
@@ -275,35 +275,48 @@ class LeadManager:
         match = re.search(email_pattern, text)
         return match.group(0).lower() if match else None
 
-    def _extract_bill_value(self, text: str) -> Optional[float]:
-        """Extrai valor da conta do texto"""
-        emoji_logger.system_debug(f"Extraindo valor da conta de: '{text[:50]}...'")
+    def _extract_membership_interest(self, text: str) -> Optional[int]:
+        """Extrai nível de interesse em ser sócio do Náutico (1-10)"""
+        emoji_logger.system_debug(f"Extraindo interesse em sócios de: '{text[:50]}...'")
         
-        patterns = [
-            r"conta.{0,20}R?\s*\$?\s*(\d+(?:[.,]\d{0,2})?)",
-            r"pago.{0,20}R?\s*\$?\s*(\d+(?:[.,]\d{0,2})?)",
-            r"valor.{0,20}R?\s*\$?\s*(\d+(?:[.,]\d{0,2})?)",
-            r"(\d+(?:[.,]\d{0,2})?)\s*reais",
-            r"uns\s*(\d+(?:[.,]\d{0,2})?)",
-            r"R?\s*\$?\s*(\d+(?:[.,]\d{0,2})?)"
+        # Padrões para detectar interesse alto
+        high_interest_patterns = [
+            r"muito interessado", r"super interessado", r"quero muito",
+            r"adoro o náutico", r"sou apaixonado", r"timão do coração",
+            r"alvirrubro de coração", r"torcedor fiel", r"desde pequeno"
         ]
         
-        for i, pattern in enumerate(patterns):
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            if matches:
-                emoji_logger.system_debug(f"Padrão {i+1} encontrou valores: {matches}")
-                try:
-                    values = [float(m.replace(",", ".")) for m in matches]
-                    reasonable_values = [v for v in values if 50 <= v <= 10000]
-                    emoji_logger.system_debug(f"Valores razoáveis filtrados: {reasonable_values}")
-                    if reasonable_values:
-                        final_value = max(reasonable_values)
-                        emoji_logger.system_success(f"Valor da conta extraído: R$ {final_value}")
-                        return final_value
-                except Exception as e:
-                    emoji_logger.system_debug(f"Erro ao processar valores: {e}")
+        # Padrões para detectar interesse médio
+        medium_interest_patterns = [
+            r"interessado", r"gostaria", r"tenho interesse",
+            r"quero saber mais", r"parece bom", r"faz sentido"
+        ]
         
-        emoji_logger.system_debug("Nenhum valor de conta encontrado")
+        # Padrões para detectar interesse baixo  
+        low_interest_patterns = [
+            r"talvez", r"não sei", r"pensando",
+            r"ainda não", r"mais tarde", r"vou ver"
+        ]
+        
+        # Verifica padrões de interesse alto (8-10)
+        for pattern in high_interest_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                emoji_logger.system_success(f"Alto interesse detectado: {pattern}")
+                return 9
+        
+        # Verifica padrões de interesse médio (5-7)
+        for pattern in medium_interest_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                emoji_logger.system_success(f"Interesse médio detectado: {pattern}")
+                return 6
+        
+        # Verifica padrões de interesse baixo (1-4)
+        for pattern in low_interest_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                emoji_logger.system_success(f"Interesse baixo detectado: {pattern}")
+                return 3
+        
+        emoji_logger.system_debug("Nível de interesse não detectado")
         return None
 
     def _extract_property_type(self, text: str) -> Optional[str]:
@@ -312,7 +325,7 @@ class LeadManager:
             "casa": ["casa", "residência", "moradia"],
             "apartamento": ["apartamento", "apto", "ap"],
             "comercial": ["empresa", "comércio", "loja", "escritório"],
-            "rural": ["fazenda", "sítio", "chácara", "rural"]
+            "torcedor_fiel": ["alvirrubro", "timão", "náutico", "torcedor", "fiel"]
         }
         for prop_type, keywords in types.items():
             if any(keyword in text for keyword in keywords):
@@ -335,11 +348,11 @@ class LeadManager:
         """Extrai interesses demonstrados"""
         interests = []
         interest_keywords = {
-            "economia": ["economizar", "economia", "reduzir conta"],
-            "sustentabilidade": ["sustentável", "meio ambiente", "verde"],
-            "investimento": ["investimento", "retorno", "valorização"],
-            "independência": ["independência", "própria energia"],
-            "tecnologia": ["tecnologia", "inovação", "moderno"]
+            "paixao_nautico": ["timba", "náutico", "alvirrubro", "aflitos"],
+            "beneficios": ["ingressos", "descontos", "benefícios", "vantagens"],
+            "pertencimento": ["família", "sócio", "torcedor", "apoiar"],
+            "jogos": ["jogos", "estádio", "partidas", "confrontos"],
+            "clube": ["clube", "time", "equipe", "tradição"]
         }
         for interest, keywords in interest_keywords.items():
             if any(keyword in text for keyword in keywords):
@@ -350,10 +363,10 @@ class LeadManager:
         """Extrai objeções mencionadas"""
         objections = []
         objection_keywords = {
-            "preço": ["caro", "muito dinheiro", "não tenho"],
-            "desconfiança": ["golpe", "enganação", "não confio"],
+            "valor": ["caro", "muito dinheiro", "não tenho", "alto"],
+            "poucos_jogos": ["não vou", "poucos jogos", "raramente"],
             "tempo": ["não é hora", "depois", "mais tarde"],
-            "propriedade": ["aluguel", "não é meu", "alugado"],
+            "ja_socio": ["já sou", "já tenho", "gratuito"],
             "dúvidas": ["não entendo", "complicado", "difícil"]
         }
         for objection, keywords in objection_keywords.items():
@@ -361,34 +374,33 @@ class LeadManager:
                 objections.append(objection)
         return objections
 
-    def _extract_chosen_flow(self, text: str) -> Optional[str]:
+    def _extract_chosen_membership_plan(self, text: str) -> Optional[str]:
         """
-        Extrai a escolha de fluxo do usuário com lógica de prioridade para
+        Extrai a escolha do plano de sócio do usuário com lógica de prioridade para
         evitar falsos positivos.
         """
         text_lower = text.lower().strip()
-        emoji_logger.system_debug(f"Extraindo fluxo escolhido de: '{text_lower}'")
+        emoji_logger.system_debug(f"Extraindo plano de sócio escolhido de: '{text_lower}'")
 
-        # Mapeamento com palavras-chave/sinônimos para cada fluxo.
+        # Mapeamento com palavras-chave/sinônimos para cada plano.
         # A ordem aqui é importante: do mais específico/prioritário para o mais geral.
         # IMPORTANTE: Palavras-chave devem ser específicas para evitar falsos positivos
-        flow_priority_map = {
-            "Usina Investimento": ["usina de investimento", "usina investimento", "opção 4", "modelo 4"],
-            "Aluguel de Lote": ["aluguel de lote", "alugar lote", "opção 2", "modelo 2"],
-            "Compra com Desconto": ["compra de energia", "comprar energia", "desconto", "opção 3", "modelo 3"],
-            "Instalação Usina Própria": ["instalação", "usina própria", "minha usina", "opção 1", "modelo 1"],
+        plan_priority_map = {
+            "Sócio Contribuinte": ["sócio contribuinte", "contribuinte", "opção 1", "plano 1", "básico"],
+            "Sócio Patrimonial": ["sócio patrimonial", "patrimonial", "opção 2", "plano 2", "intermediário"],
+            "Sócio Remido": ["sócio remido", "remido", "opção 3", "plano 3", "premium"],
+            "Sócio Benemérito": ["sócio benemérito", "benemérito", "opção 4", "plano 4", "vip", "máximo"],
         }
 
-        for flow, keywords in flow_priority_map.items():
-            emoji_logger.system_debug(f"Testando fluxo '{flow}' com palavras-chave: {keywords}")
+        for plan, keywords in plan_priority_map.items():
+            emoji_logger.system_debug(f"Testando plano '{plan}' com palavras-chave: {keywords}")
             for keyword in keywords:
-                # Usamos \b para garantir que estamos combinando palavras inteiras e evitar
-                # que "investimento" combine com "pré-investimento", por exemplo.
+                # Usamos \b para garantir que estamos combinando palavras inteiras
                 if re.search(r'\b' + re.escape(keyword) + r'\b', text_lower):
-                    emoji_logger.system_success(f"Fluxo escolhido detectado: '{flow}' via palavra-chave '{keyword}'")
-                    return flow
+                    emoji_logger.system_success(f"Plano de sócio escolhido detectado: '{plan}' via palavra-chave '{keyword}'")
+                    return plan
         
-        emoji_logger.system_debug("Nenhum fluxo específico detectado")
+        emoji_logger.system_debug("Nenhum plano específico detectado")
         return None
 
     def format_lead_summary(self, lead_info: Dict[str, Any]) -> str:
@@ -402,16 +414,16 @@ class LeadManager:
             summary += f"📧 Email: {lead_info['email']}\n"
         if lead_info.get("location"):
             summary += f"📍 Localização: {lead_info['location']}\n"
-        if lead_info.get("bill_value"):
-            summary += f"💰 Valor da conta: R$ {lead_info['bill_value']:.2f}\n"
+        if lead_info.get("membership_interest"):
+            summary += f"⚽ Interesse em sócios: {lead_info['membership_interest']}/10\n"
         if lead_info.get("property_type"):
             summary += f"🏠 Tipo de imóvel: {lead_info['property_type']}\n"
         if lead_info.get("interests"):
             summary += f"✨ Interesses: {', '.join(lead_info['interests'])}\n"
         if lead_info.get("objections"):
             summary += f"⚠️ Objeções: {', '.join(lead_info['objections'])}\n"
-        if lead_info.get("chosen_flow"):
-            summary += f"🎯 Fluxo escolhido: {lead_info['chosen_flow']}\n"
+        if lead_info.get("chosen_membership_plan"):
+            summary += f"🎯 Plano escolhido: {lead_info['chosen_membership_plan']}\n"
         if self.scoring_enabled:
             summary += (
                 f"\n🎯 Score: {lead_info['qualification_score']:.0f}/100\n"

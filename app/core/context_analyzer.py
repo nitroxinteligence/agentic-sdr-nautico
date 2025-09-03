@@ -72,18 +72,18 @@ class ContextAnalyzer:
         """
         # A fonte da verdade agora são os dados do lead, não o texto da conversa.
         has_name = bool(lead_info.get("name"))
-        has_bill_value = bool(lead_info.get("bill_value"))
-        has_chosen_flow = bool(lead_info.get("chosen_flow"))
+        has_membership_interest = bool(lead_info.get("membership_interest"))
+        has_chosen_plan = bool(lead_info.get("chosen_membership_plan"))
 
         # Lógica de fluxo baseada em dados, muito mais confiável.
         if not has_name:
             return "estagio_0_coleta_nome"
         
-        if not has_bill_value:
-            return "estagio_1_qualificacao_por_valor"
+        if not has_membership_interest:
+            return "estagio_1_qualificacao_interesse"
 
-        if not has_chosen_flow:
-            return "estagio_2_roteamento_e_apresentacao"
+        if not has_chosen_plan:
+            return "estagio_2_apresentacao_planos"
 
         # Se todas as informações principais foram coletadas, estamos na fase de qualificação detalhada.
         # Uma verificação final de intenção de agendamento pode ser útil.
@@ -144,7 +144,7 @@ class ContextAnalyzer:
 
     def _extract_topics(self, messages: List[Dict[str, Any]]) -> List[str]:
         # IMPORTANTE: Palavras-chave devem ser específicas para evitar falsos positivos
-        topics, keywords = [], {"economia": ["economizar", "conta", "valor"], "energia_solar": ["solar", "painel", "energia"], "investimento_solar": ["investir em solar", "retorno solar", "custo solar"], "instalação": ["instalar", "obra", "telhado"]}
+        topics, keywords = [], {"paixao_nautico": ["alvirrubro", "timão", "náutico"], "socios": ["sócio", "programa", "fiel"], "beneficios": ["benefício", "vantagem", "desconto"], "fidelidade": ["torcedor", "fiel", "apoio"]}
         all_text = " ".join([self._get_text_from_message(msg) for msg in messages]).lower()
         for topic, keys in keywords.items():
             if any(key in all_text for key in keys):
@@ -167,7 +167,7 @@ class ContextAnalyzer:
         return sum(factors.values()) / len(factors)
 
     def _find_objections(self, messages: List[Dict[str, Any]]) -> List[str]:
-        objections, patterns = [], {"preço": ["caro", "dinheiro"], "desconfiança": ["golpe", "não confio"], "timing": ["agora não", "depois"], "propriedade": ["aluguel", "não é meu"], "tecnologia": ["complicado", "difícil"]}
+        objections, patterns = [], {"preço": ["caro", "dinheiro"], "desconfiança": ["golpe", "não confio"], "timing": ["agora não", "depois"], "interesse": ["não tenho tempo", "não gosto"], "compromisso": ["complicado", "difícil"]}
         all_text = " ".join([self._get_text_from_message(msg) for msg in messages]).lower()
         for obj, pats in patterns.items():
             if any(p in all_text for p in pats):
@@ -202,18 +202,18 @@ class ContextAnalyzer:
                 "attempts_made": self._count_name_attempts(messages),
                 "resistance_level": self._assess_name_resistance(messages)
             },
-            "estagio_1_qualificacao_por_valor": {
-                "description": "Qualificando por valor da conta de energia",
-                "expected_info": "valor da conta",
+            "estagio_1_qualificacao_interesse": {
+                "description": "Qualificando interesse em ser sócio do Náutico",
+                "expected_info": "nível de interesse",
                 "has_name": bool(lead_info.get("name")),
                 "name_quality": self._assess_name_quality(lead_info.get("name", ""))
             },
-            "estagio_2_roteamento_e_apresentacao": {
-                "description": "Roteamento e apresentação de soluções",
-                "expected_info": "escolha de fluxo",
+            "estagio_2_apresentacao_planos": {
+                "description": "Apresentação dos planos de sócio",
+                "expected_info": "escolha do plano",
                 "collected_data": {
                     "name": lead_info.get("name"),
-                    "bill_value": lead_info.get("bill_value")
+                    "membership_interest": lead_info.get("membership_interest")
                 }
             },
             "qualificacao_detalhada": {

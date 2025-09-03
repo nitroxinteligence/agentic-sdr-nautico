@@ -11,7 +11,7 @@ A investigação no código-fonte do diretório `@app/**` revelou o seguinte flu
 1.  **`AgenticSDRStateless._generate_response()`**: Este método, localizado em `app/agents/agentic_sdr_stateless.py`, inicia o processo chamando `self._search_knowledge_base(message)`.
 2.  **`AgenticSDRStateless._search_knowledge_base()`**: Esta função interna instancia e chama o `KnowledgeService` para buscar os documentos.
 3.  **`KnowledgeService.search_knowledge_base()`**: Localizado em `app/services/knowledge_service.py`, este serviço é responsável por se conectar ao Supabase e executar a query na tabela `knowledge_base`.
-4.  **Formatação e Injeção**: O resultado da busca retorna para `AgenticSDRStateless`, onde é formatado como uma string sob o cabeçalho "📚 CONHECIMENTO RELEVANTE DA SOLARPRIME:".
+4.  **Formatação e Injeção**: O resultado da busca retorna para `AgenticSDRStateless`, onde é formatado como uma string sob o cabeçalho "📚 CONHECIMENTO RELEVANTE DO NÁUTICO:".
 5.  **Construção do Prompt Final**: Essa string de conhecimento é então concatenada ao prompt principal, que já contém o histórico da conversa e a mensagem atual do usuário. O prompt completo é enviado ao modelo de IA.
 
 À primeira vista, o fluxo parece correto e os logs refletem que os passos estão sendo executados. No entanto, a análise aprofundada revelou duas falhas críticas que anulam a eficácia do sistema.
