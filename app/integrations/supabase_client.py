@@ -20,9 +20,17 @@ class SupabaseClient:
 
     def __init__(self):
         """Inicializa o cliente Supabase"""
+        # Usar supabase_key ou supabase_service_key dependendo da disponibilidade
+        supabase_key = settings.supabase_key or settings.supabase_service_key
+        
+        if not settings.supabase_url:
+            raise Exception("supabase_url is required")
+        if not supabase_key:
+            raise Exception("supabase_key is required")
+            
         self.client: Client = create_client(
             supabase_url=settings.supabase_url,
-            supabase_key=settings.supabase_service_key
+            supabase_key=supabase_key
         )
 
     async def test_connection(self) -> bool:
