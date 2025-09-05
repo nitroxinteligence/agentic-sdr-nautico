@@ -1,13 +1,13 @@
-# Build stage
+# Dockerfile para EasyPanel - Produção Náutico SDR
 FROM python:3.11-slim AS builder
 
-# Install system dependencies for building
+# Install system build dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     libpq-dev \
     build-essential \
-    wget \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -16,14 +16,17 @@ WORKDIR /app
 # Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies with retry and timeout protection
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --user -r requirements.txt
+    pip install --no-cache-dir --timeout 600 --retries 3 --user -r requirements.txt
 
 # Runtime stage
 FROM python:3.11-slim
 
-# Install runtime dependencies
+# Create non-root user
+RUN groupadd -r marina && useradd -r -g marina marina
+
+# Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y \
     libpq5 \
     tesseract-ocr \
@@ -32,50 +35,54 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     libmagic1 \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copy Python packages from builder
-COPY --from=builder /root/.local /root/.local
+COPY --from=builder --chown=marina:marina /root/.local /home/marina/.local
 
 # Set environment variables
-ENV PATH=/root/.local/bin:$PATH \
+ENV PATH=/home/marina/.local/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    ENVIRONMENT=production \
+    PORT=8000 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Set working directory
 WORKDIR /app
 
-# Add a cache buster argument
-ARG CACHE_BUSTER=1
-
 # Copy application code
-COPY . .
+COPY --chown=marina:marina . .
 
-# Setup NLTK data (download punkt tokenizer for sentence splitting)
-# SIMPLES: Pre-download para evitar download em runtime - apenas punkt padrão
-RUN python -c "import nltk; nltk.download('punkt', quiet=True)" || true
+# Download NLTK data with fallback
+RUN python -c "try: import nltk; nltk.download('punkt', quiet=True)\nexcept: pass" || true
 
-# Clean Python cache to force fresh imports
-RUN find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true && \
-    find . -type f -name "*.pyc" -delete 2>/dev/null || true && \
-    find . -type f -name "*.pyo" -delete 2>/dev/null || true && \
-    rm -rf /root/.cache/pip/* 2>/dev/null || true && \
-    python -c "import py_compile; import compileall; compileall.compile_dir('/app', force=True)" || true
+# Clean and compile
+RUN find . -name "*.pyc" -delete && \
+    find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    python -c "import compileall; compileall.compile_dir('/app', quiet=True)" || true
 
-# Copy .env file if exists (can be overridden by docker-compose volume)
-# Using shell to handle if file doesn't exist
-RUN if [ -f .env ]; then cp .env /app/.env; fi
+# Create directories with proper permissions
+RUN mkdir -p /app/logs /app/uploads /app/temp && \
+    chown -R marina:marina /app
 
-# Create necessary directories
-RUN mkdir -p /app/logs /app/uploads /app/temp
+# Switch to non-root user
+USER marina
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Optimized health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Production optimized command with single worker for debugging
+CMD ["uvicorn", "main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1", \
+     "--timeout-keep-alive", "5", \
+     "--access-log"]
