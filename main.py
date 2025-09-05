@@ -49,70 +49,62 @@ async def lifespan(app: FastAPI):
             else:
                 emoji_logger.system_warning("Redis não disponível - continuando sem cache")
         except Exception as e:
-            emoji_logger.system_warning(f"Redis não disponível: {e} - continuando sem cache")
-        
-        # Testar conexão Supabase
-        if await supabase_client.test_connection():
-            emoji_logger.system_ready("Supabase")
-        else:
-            emoji_logger.system_error("Supabase", "Falha na conexão")
-        
-        # Inicializar Message Buffer com configurações corretas
-        from app.services.message_buffer import set_message_buffer, MessageBuffer
-        message_buffer = MessageBuffer(
-            timeout=settings.message_buffer_timeout,
-            max_size=10
-        )
-        set_message_buffer(message_buffer)
+            emoji_logger.system_warning(f"Redis connection failed: {e}")
+
+        # Testar conexão com Supabase
+        try:
+            is_connected = await supabase_client.test_connection()
+            if is_connected:
+                emoji_logger.system_ready("Supabase")
+            else:
+                emoji_logger.system_warning("Supabase não disponível")
+        except Exception as e:
+            emoji_logger.system_warning(f"Supabase connection failed: {e}")
+
+        # Inicializar Message Buffer
+        message_buffer = get_message_buffer()
+        await message_buffer.initialize()
         emoji_logger.system_ready("Message Buffer", data={"timeout": f"{message_buffer.timeout}s"})
-        
-        # Inicializar Message Splitter com configurações corretas
-        from app.services.message_splitter import set_message_splitter, MessageSplitter
-        message_splitter = MessageSplitter(
-            max_length=settings.message_max_length,
-            add_indicators=settings.message_add_indicators,
-            enable_smart_splitting=settings.enable_smart_splitting,
-            smart_splitting_fallback=settings.smart_splitting_fallback
-        )
-        set_message_splitter(message_splitter)
+
+        # Inicializar Message Splitter
+        message_splitter = get_message_splitter()
+        message_splitter.initialize()
         emoji_logger.system_ready("Message Splitter", data={"max_length": message_splitter.max_length})
-        
+
         # Inicializar Conversation Monitor
         conversation_monitor = get_conversation_monitor()
         await conversation_monitor.initialize()
         emoji_logger.system_ready("Conversation Monitor")
-        
-        # Sistema refatorado pronto
+
+        # Inicializar sistema refatorado
         emoji_logger.system_ready("Sistema Refatorado", data={"modules": "Core + Services"})
-        
-        # Inicializar FollowUp Service
-        followup_service = FollowUpServiceReal()
+
+        # Inicializar FollowUp Services
+        followup_manager_service.initialize()
         emoji_logger.system_ready("FollowUp Service")
-        
-        # Inicializar AgenticSDR Stateless
+
+        # Inicializar Agente Principal
         agentic_sdr = AgenticSDRStateless()
         await agentic_sdr.initialize()
         emoji_logger.system_ready("AgenticSDR (Stateless)", data={"status": "sistema pronto"})
-        
-        # FollowUp Services prontos
+
+        # Inicializar FollowUp Services Final
         emoji_logger.system_ready("FollowUp Services")
         
-        # Aviso sobre workers de follow-up (se Redis disponível)
-        if redis_client.redis_client:
-            emoji_logger.system_info("📌 IMPORTANTE: Para follow-ups do Náutico funcionarem, execute: python start_workers.py")
-            emoji_logger.system_info("📌 Os workers processam as filas do Redis para envio automatizado")
-        
-        # Pré-aquecer o sistema
+        # Avisos importantes
+        emoji_logger.system_info("📌 IMPORTANTE: Para follow-ups do Náutico funcionarem, execute: python start_workers.py")
+        emoji_logger.system_info("📌 Os workers processam as filas do Redis para envio automatizado")
+
+        # Pré-aquecer agente (warmup)
         emoji_logger.system_info("🔥 Pré-aquecendo AgenticSDR (Stateless)...")
         warmup_agent = AgenticSDRStateless()
         await warmup_agent.initialize()
-        
-        # Sistema pronto
-        startup_time = time.time() - start_time
-        emoji_logger.system_ready("SDR IA Náutico", startup_time=startup_time)
-        
+
+        elapsed = (time.time() - start_time) * 1000
+        emoji_logger.system_ready("SDR IA Náutico", data={"startup_ms": elapsed})
+
         yield
-        
+
     except Exception as e:
         emoji_logger.system_error("Startup", f"Erro durante startup: {e}")
         raise
@@ -122,14 +114,12 @@ async def lifespan(app: FastAPI):
         emoji_logger.system_info("🔄 Iniciando shutdown...")
         
         # Parar serviços
-        if message_buffer:
+        if 'message_buffer' in locals():
             await message_buffer.shutdown()
         
         conversation_monitor = get_conversation_monitor()
         if conversation_monitor:
             await conversation_monitor.shutdown()
-            
-        # FollowUp Manager não precisa de shutdown
             
         if redis_client:
             await redis_client.disconnect()
@@ -142,9 +132,9 @@ async def lifespan(app: FastAPI):
 # Criar aplicação FastAPI
 app = FastAPI(
     title="SDR IA Náutico",
-    description="Sistema de IA para automação de vendas via WhatsApp",
+    description="Sistema de SDR IA para Clube Náutico Capibaribe",
     version="0.3.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configurar CORS
@@ -156,29 +146,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Incluir routers
-app.include_router(health_router, tags=["health"])
-app.include_router(webhooks_router, tags=["webhooks"])
-app.include_router(kommo_router, tags=["kommo"])
-app.include_router(google_auth_router, tags=["auth"])
-
-# Endpoint raiz
-@app.get("/")
-async def root():
-    """Endpoint raiz da aplicação"""
-    return {
-        "message": "SDR IA Náutico",
-        "version": "0.3.0",
-        "status": "running",
-        "agent": "Marina Campelo"
-    }
+# Registrar routers
+app.include_router(health_router)
+app.include_router(webhooks_router)
+app.include_router(kommo_router)
+app.include_router(google_auth_router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=False,
-        workers=1
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000)
