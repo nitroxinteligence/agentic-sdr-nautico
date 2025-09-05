@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     redis_port: int = Field(default=6379, env="REDIS_PORT")
     redis_password: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
     redis_username: str = Field(default="default", env="REDIS_USERNAME")
+    redis_user: str = Field(default="default", env="REDIS_USER")  # Para compatibilidade EasyPanel
     google_auth_method: str = Field(
         default="oauth", env="GOOGLE_AUTH_METHOD"
     )
@@ -79,8 +80,8 @@ class Settings(BaseSettings):
     )
     google_client_id: str = Field(default="", env="GOOGLE_CLIENT_ID")
     google_calendar_id: str = Field(default="", env="GOOGLE_CALENDAR_ID")
-    disable_google_calendar: bool = Field(
-        default=False, env="DISABLE_GOOGLE_CALENDAR"
+    enable_google_calendar: bool = Field(
+        default=False, env="ENABLE_GOOGLE_CALENDAR"
     )
     google_workspace_user_email: str = Field(
         default="", env="GOOGLE_WORKSPACE_USER_EMAIL"
@@ -365,11 +366,17 @@ class Settings(BaseSettings):
 
     def get_redis_url(self) -> str:
         """Constrói a URL do Redis com autenticação se necessário"""
+        # Se REDIS_URL está definida e não é a padrão, usar ela
         if self.redis_url and self.redis_url != "redis://localhost:6379/0":
             return self.redis_url
+            
+        # Construir URL a partir das credenciais individuais
+        # Usar redis_user se definido, senão redis_username 
+        username = self.redis_user if self.redis_user != "default" else self.redis_username
+        
         if self.redis_password:
             return (
-                f"redis://{self.redis_username}:{self.redis_password}@"
+                f"redis://{username}:{self.redis_password}@"
                 f"{self.redis_host}:{self.redis_port}/0"
             )
         return f"redis://{self.redis_host}:{self.redis_port}/0"

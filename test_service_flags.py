@@ -151,7 +151,7 @@ class ServiceFlagTester:
                 'ENABLE_CRM_INTEGRATION': 'true',
                 'ENABLE_KNOWLEDGE_BASE': 'true', 
                 'ENABLE_FOLLOW_UP_AUTOMATION': 'true',
-                'DISABLE_GOOGLE_CALENDAR': 'false'
+                'ENABLE_GOOGLE_CALENDAR': 'true'
             },
             ['calendar', 'crm', 'followup', 'knowledge']
         )
@@ -163,7 +163,7 @@ class ServiceFlagTester:
                 'ENABLE_CRM_INTEGRATION': 'true',
                 'ENABLE_KNOWLEDGE_BASE': 'false',
                 'ENABLE_FOLLOW_UP_AUTOMATION': 'false', 
-                'DISABLE_GOOGLE_CALENDAR': 'true'
+                'ENABLE_GOOGLE_CALENDAR': 'false'
             },
             ['crm']
         )
@@ -175,7 +175,7 @@ class ServiceFlagTester:
                 'ENABLE_CRM_INTEGRATION': 'false',
                 'ENABLE_KNOWLEDGE_BASE': 'true',
                 'ENABLE_FOLLOW_UP_AUTOMATION': 'false',
-                'DISABLE_GOOGLE_CALENDAR': 'false'
+                'ENABLE_GOOGLE_CALENDAR': 'true'
             },
             ['calendar', 'knowledge']
         )
@@ -187,7 +187,7 @@ class ServiceFlagTester:
                 'ENABLE_CRM_INTEGRATION': 'false',
                 'ENABLE_KNOWLEDGE_BASE': 'false',
                 'ENABLE_FOLLOW_UP_AUTOMATION': 'false',
-                'DISABLE_GOOGLE_CALENDAR': 'true'
+                'ENABLE_GOOGLE_CALENDAR': 'false'
             },
             []
         )
@@ -199,7 +199,7 @@ class ServiceFlagTester:
                 'ENABLE_CRM_INTEGRATION': 'false',
                 'ENABLE_KNOWLEDGE_BASE': 'false',
                 'ENABLE_FOLLOW_UP_AUTOMATION': 'true',
-                'DISABLE_GOOGLE_CALENDAR': 'true'
+                'ENABLE_GOOGLE_CALENDAR': 'false'
             },
             ['followup']
         )

@@ -39,9 +39,16 @@ class CalendarServiceReal:
         """Inicializa conexão REAL com Google Calendar usando OAuth 2.0."""
         if self.is_initialized:
             return
+            
+        # Verificar se Google Calendar está habilitado
+        if not settings.enable_google_calendar:
+            emoji_logger.system_warning("Google Calendar desabilitado - pulando inicialização")
+            return
+            
         try:
             if not self.calendar_id:
-                raise ValueError("O GOOGLE_CALENDAR_ID não está configurado no arquivo .env.")
+                emoji_logger.system_warning("GOOGLE_CALENDAR_ID não configurado - Google Calendar desabilitado")
+                return
 
             self.service = self.oauth_handler.build_calendar_service()
             if not self.service:

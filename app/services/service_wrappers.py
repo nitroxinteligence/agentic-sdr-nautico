@@ -16,7 +16,7 @@ class ServiceNotEnabledError(Exception):
 class CalendarServiceWrapper:
     """
     Wrapper condicional para CalendarService
-    Verifica DISABLE_GOOGLE_CALENDAR antes de executar operações
+    Verifica ENABLE_GOOGLE_CALENDAR antes de executar operações
     """
 
     def __init__(self, calendar_service):
@@ -25,10 +25,10 @@ class CalendarServiceWrapper:
 
     def _check_enabled(self):
         """Verifica se o serviço está habilitado"""
-        if settings.disable_google_calendar:
+        if not settings.enable_google_calendar:
             raise ServiceNotEnabledError(
                 f"{self.service_name} está desabilitado via configuração. "
-                f"Defina DISABLE_GOOGLE_CALENDAR=false no .env para habilitar."
+                f"Defina ENABLE_GOOGLE_CALENDAR=true no .env para habilitar."
             )
 
     async def initialize(self):

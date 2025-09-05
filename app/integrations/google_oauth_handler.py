@@ -29,6 +29,17 @@ class GoogleOAuthHandler:
 
     def __init__(self):
         """Inicializa o handler OAuth"""
+        # Verificar se Google Calendar está habilitado
+        if not settings.enable_google_calendar:
+            emoji_logger.system_warning("Google Calendar desabilitado - OAuth não inicializado")
+            self.client_id = ""
+            self.client_secret = ""
+            self.redirect_uri = ""
+            self.refresh_token = ""
+            self._credentials: Optional[Credentials] = None
+            self._credentials_expire: Optional[datetime] = None
+            return
+            
         self.client_id = settings.google_oauth_client_id
         self.client_secret = settings.google_oauth_client_secret
         self.redirect_uri = settings.google_oauth_redirect_uri

@@ -10,6 +10,7 @@ import logging
 
 from app.integrations.google_oauth_handler import get_oauth_handler
 from app.utils.logger import emoji_logger
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,10 @@ async def google_auth():
     Inicia fluxo de autorização OAuth 2.0
     Redireciona o usuário para a tela de consentimento do Google
     """
+    # Verificar se Google Calendar está habilitado
+    if not settings.enable_google_calendar:
+        raise HTTPException(status_code=503, detail="Google Calendar está desabilitado")
+        
     try:
         emoji_logger.service_call("GET /google/auth - Iniciando fluxo OAuth")
 

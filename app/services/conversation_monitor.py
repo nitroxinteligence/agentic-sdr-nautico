@@ -91,6 +91,11 @@ class ConversationMonitor:
     async def _check_inactive_conversations(self):
         """Verifica conversas inativas e agenda follow-ups."""
         try:
+            # Verifica se Redis está disponível
+            if not self.redis.redis_client:
+                emoji_logger.system_debug("Redis indisponível - pulando verificação")
+                return
+                
             now = datetime.now()
             async for key in self.redis.redis_client.scan_iter(
                 "monitor:active:*"
