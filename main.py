@@ -92,15 +92,19 @@ async def lifespan(app: FastAPI):
         emoji_logger.system_info("📌 IMPORTANTE: Para follow-ups do Náutico funcionarem, execute: python start_workers.py")
         emoji_logger.system_info("📌 Os workers processam as filas do Redis para envio automatizado")
 
-        # Pré-aquecer agente (warmup)
-        emoji_logger.system_info("🔥 Pré-aquecendo AgenticSDR (Stateless)...")
-        warmup_agent = AgenticSDRStateless()
-        await warmup_agent.initialize()
+        # Pré-aquecimento desabilitado para debugging
+        emoji_logger.system_info("🔥 Warmup desabilitado - servidor pronto para uso")
 
         elapsed = (time.time() - start_time) * 1000
         emoji_logger.system_ready("SDR IA Náutico", data={"startup_ms": elapsed})
 
+        emoji_logger.system_info("🎯 Lifespan: Entrando no yield - servidor ativo")
+        emoji_logger.system_info(f"🔍 Tasks ativas: {len(asyncio.all_tasks())}")
+        
         yield
+        
+        emoji_logger.system_info("🎯 Lifespan: Saindo do yield - iniciando shutdown")
+        emoji_logger.system_info(f"🔍 Tasks ativas no shutdown: {len(asyncio.all_tasks())}")
 
     except Exception as e:
         emoji_logger.system_error("Startup", f"Erro durante startup: {e}")
