@@ -661,6 +661,12 @@ async def webhook_handler(request: Request):
     """Manipula webhooks do WhatsApp"""
     try:
         body = await request.body()
+        
+        # Validar body vazio
+        if not body or len(body.strip()) == 0:
+            emoji_logger.webhook_warning("Webhook recebido com body vazio")
+            return {"status": "ok", "message": "Empty body received"}
+        
         data = json.loads(body)
         
         # Log detalhado do webhook recebido
@@ -778,13 +784,44 @@ async def evolution_webhook(
 ):
     """Webhook principal da Evolution API"""
     try:
-        data = await request.json()
+        # Obter body raw primeiro para validação
+        body = await request.body()
+        
+        # Log do body raw para debug
+        emoji_logger.system_debug(f"Evolution webhook body length: {len(body)} bytes")
+        
+        if not body or len(body.strip()) == 0:
+            emoji_logger.system_warning("Webhook Evolution recebido com body vazio")
+            return {"status": "ok", "message": "Empty body received"}
+        
+        # Tentar decodificar JSON
+        try:
+            body_str = body.decode('utf-8')
+            data = json.loads(body_str)
+        except UnicodeDecodeError:
+            emoji_logger.system_error("Webhook Evolution - Erro de encoding UTF-8")
+            return {"status": "error", "message": "Invalid encoding"}
+        except json.JSONDecodeError as json_err:
+            emoji_logger.system_error(
+                f"Webhook Evolution - JSON inválido: {json_err}. "
+                f"Body: '{body_str[:200]}...'"
+            )
+            return {"status": "error", "message": f"Invalid JSON: {str(json_err)}"}
+        
+        # Validar estrutura mínima
+        if not isinstance(data, dict):
+            emoji_logger.system_error(f"Webhook Evolution - Data não é dict: {type(data)}")
+            return {"status": "error", "message": "Data is not a dictionary"}
+        
         event = data.get("event")
         instance = data.get("instance")
 
         emoji_logger.webhook_receive(
             "/evolution", "evolution-api", event=event, instance=instance
         )
+        
+        # Log completo dos dados para debug
+        emoji_logger.system_debug(f"Evolution webhook data: {json.dumps(data, indent=2)[:500]}...")
 
         if event == "MESSAGES_UPSERT":
             actual_data = data.get("data", data)
@@ -799,12 +836,15 @@ async def evolution_webhook(
             await process_presence_update(data.get("data", {}))
         elif event == "CONTACTS_UPDATE":
             await process_contacts_update(data.get("data", {}))
+        else:
+            emoji_logger.system_warning(f"Evento Evolution não reconhecido: {event}")
 
         return {"status": "ok", "event": event}
 
     except Exception as e:
-        emoji_logger.system_error(f"Webhook Evolution - {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        emoji_logger.system_error(f"Webhook Evolution - Erro crítico: {str(e)}")
+        emoji_logger.system_debug(f"Traceback: {traceback.format_exc()}")
+        return {"status": "error", "message": str(e)}
 
 
 async def process_new_message(data: Any):

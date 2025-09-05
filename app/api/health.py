@@ -239,7 +239,7 @@ async def service_info():
     return {
         "service": "SDR IA Náutico",
         "version": "0.2.0",
-        "environment": settings.ENVIRONMENT,
+        "environment": settings.environment,
         "agent": "Marina Campelo",
         "company": "Clube Náutico Capibaribe",
         "features": {
