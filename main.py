@@ -101,6 +101,14 @@ async def lifespan(app: FastAPI):
         emoji_logger.system_info("🎯 Lifespan: Entrando no yield - servidor ativo")
         emoji_logger.system_info(f"🔍 Tasks ativas: {len(asyncio.all_tasks())}")
         
+        # Log de recursos para debugging
+        import psutil
+        import os
+        process = psutil.Process(os.getpid())
+        memory_mb = process.memory_info().rss / 1024 / 1024
+        cpu_percent = process.cpu_percent()
+        emoji_logger.system_info(f"🐳 Container - RAM: {memory_mb:.1f}MB, CPU: {cpu_percent:.1f}%")
+        
         yield
         
         emoji_logger.system_info("🎯 Lifespan: Saindo do yield - iniciando shutdown")
