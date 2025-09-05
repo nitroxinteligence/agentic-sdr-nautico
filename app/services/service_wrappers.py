@@ -86,10 +86,10 @@ class CRMServiceWrapper:
 
     def _check_enabled(self):
         """Verifica se o serviço está habilitado"""
-        if not settings.enable_crm_integration:
+        if not settings.enable_kommo_crm:
             raise ServiceNotEnabledError(
                 f"{self.service_name} está desabilitado via configuração. "
-                f"Defina ENABLE_CRM_INTEGRATION=true no .env para habilitar."
+                f"Defina ENABLE_KOMMO_CRM=true no .env para habilitar."
             )
 
     async def initialize(self):

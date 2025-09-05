@@ -581,8 +581,8 @@ async def create_agent_with_context(
         # Passo 1: Obter dados locais do Supabase
         lead_data = await supabase_client.get_lead_by_phone(phone)
         
-        # Passo 2: Sincronização em Tempo Real com Kommo
-        if lead_data and lead_data.get("kommo_lead_id"):
+        # Passo 2: Sincronização em Tempo Real com Kommo (se habilitado)
+        if lead_data and lead_data.get("kommo_lead_id") and settings.enable_kommo_crm:
             crm_service = CRMServiceReal()
             await crm_service.initialize() # Garante que o serviço esteja inicializado
             kommo_lead = await crm_service.get_lead_by_id(str(lead_data["kommo_lead_id"]))

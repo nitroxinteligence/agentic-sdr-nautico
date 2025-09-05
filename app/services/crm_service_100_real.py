@@ -108,6 +108,12 @@ class CRMServiceReal:
         """Inicializa conexão REAL com Kommo CRM"""
         if self.is_initialized:
             return
+            
+        # Verificar se CRM está habilitado
+        if not settings.enable_kommo_crm:
+            emoji_logger.system_warning("Kommo CRM desabilitado - pulando inicialização")
+            return
+            
         try:
             await wait_for_kommo()
             async with await self._get_session() as session:

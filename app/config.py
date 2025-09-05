@@ -264,8 +264,8 @@ class Settings(BaseSettings):
     enable_auto_translation: bool = Field(
         default=False, env="ENABLE_AUTO_TRANSLATION"
     )
-    enable_crm_integration: bool = Field(
-        default=True, env="ENABLE_CRM_INTEGRATION"
+    enable_kommo_crm: bool = Field(
+        default=False, env="ENABLE_KOMMO_CRM"
     )
     enable_knowledge_base: bool = Field(
         default=True, env="ENABLE_KNOWLEDGE_BASE"
