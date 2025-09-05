@@ -119,7 +119,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     try:
-        emoji_logger.info("🔄 Iniciando shutdown...")
+        emoji_logger.system_info("🔄 Iniciando shutdown...")
         
         # Parar serviços
         if message_buffer:
@@ -134,10 +134,10 @@ async def lifespan(app: FastAPI):
         if redis_client:
             await redis_client.disconnect()
             
-        emoji_logger.info("✅ Shutdown concluído")
+        emoji_logger.system_info("✅ Shutdown concluído")
         
     except Exception as e:
-        emoji_logger.error(f"Erro durante shutdown: {e}")
+        emoji_logger.system_error("Shutdown", f"Erro durante shutdown: {e}")
 
 # Criar aplicação FastAPI
 app = FastAPI(
