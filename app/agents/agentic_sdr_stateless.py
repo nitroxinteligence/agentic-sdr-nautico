@@ -51,7 +51,7 @@ class AgenticSDRStateless:
         self.conversation_monitor = get_conversation_monitor()
 
         # Instanciar serviços com wrappers condicionais
-        calendar_real = CalendarServiceReal() if not settings.disable_google_calendar else None
+        calendar_real = CalendarServiceReal() if settings.enable_google_calendar else None
         crm_real = CRMServiceReal() if settings.enable_crm_integration else None
         followup_real = FollowUpServiceReal() if settings.enable_follow_up_automation else None
         knowledge_real = KnowledgeService() if settings.enable_knowledge_base else None
