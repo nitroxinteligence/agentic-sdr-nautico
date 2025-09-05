@@ -147,8 +147,8 @@ class Settings(BaseSettings):
         default="18:00", env="BUSINESS_HOURS_END"
     )
     timezone: str = Field(default="America/Sao_Paulo", env="TIMEZONE")
-    debug: bool = Field(default=False)
-    environment: str = Field(default="production")
+    debug: bool = Field(default=False, env="DEBUG")
+    environment: str = Field(default="production", env="ENVIRONMENT")
     log_level: str = Field(default="INFO")
     agno_model: str = Field(default="gemini-2.5-pro")
     agno_fallback_model: str = Field(default="o1-mini")
