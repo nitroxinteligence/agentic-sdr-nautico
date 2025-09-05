@@ -61,14 +61,12 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             emoji_logger.system_warning(f"Supabase connection failed: {e}")
 
-        # Inicializar Message Buffer
+        # Inicializar Message Buffer (já inicializado no construtor)
         message_buffer = get_message_buffer()
-        await message_buffer.initialize()
         emoji_logger.system_ready("Message Buffer", data={"timeout": f"{message_buffer.timeout}s"})
 
-        # Inicializar Message Splitter
+        # Inicializar Message Splitter (já inicializado no construtor)
         message_splitter = get_message_splitter()
-        message_splitter.initialize()
         emoji_logger.system_ready("Message Splitter", data={"max_length": message_splitter.max_length})
 
         # Inicializar Conversation Monitor
@@ -79,8 +77,7 @@ async def lifespan(app: FastAPI):
         # Inicializar sistema refatorado
         emoji_logger.system_ready("Sistema Refatorado", data={"modules": "Core + Services"})
 
-        # Inicializar FollowUp Services
-        followup_manager_service.initialize()
+        # FollowUp Services (já inicializado no construtor)
         emoji_logger.system_ready("FollowUp Service")
 
         # Inicializar Agente Principal
