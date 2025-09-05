@@ -202,7 +202,7 @@ async def check_dependencies():
     # Kommo CRM (se configurado)
     try:
         from app.config import settings
-        if settings.KOMMO_LONG_LIVED_TOKEN:
+        if settings.kommo_long_lived_token:
             dependencies["kommo_crm"] = {
                 "status": "configured",
                 "type": "crm"
@@ -246,7 +246,7 @@ async def service_info():
             "whatsapp": True,
             "ai_qualification": True,
             "payment_validation": True,
-            "kommo_crm": bool(settings.KOMMO_LONG_LIVED_TOKEN),
+            "kommo_crm": bool(settings.kommo_long_lived_token),
             "follow_up": True,
             "membership_program": True
         },
