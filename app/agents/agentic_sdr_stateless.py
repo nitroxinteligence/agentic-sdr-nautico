@@ -33,6 +33,9 @@ from app.services.service_wrappers import (
     FollowUpServiceWrapper,
     KnowledgeServiceWrapper
 )
+from app.tools.stage_management_tools import StageManagementTools
+from app.tools.followup_nautico_tools import FollowUpNauticoTools
+from app.services.audio_service import AudioService
 
 
 class AgenticSDRStateless:
@@ -61,6 +64,13 @@ class AgenticSDRStateless:
         self.crm_service = CRMServiceWrapper(crm_real) if crm_real else None
         self.followup_service = FollowUpServiceWrapper(followup_real) if followup_real else None
         self.knowledge_service = KnowledgeServiceWrapper(knowledge_real) if knowledge_real else None
+
+        # Inicializar ferramentas de estágio e follow-up
+        self.stage_tools = StageManagementTools(self.crm_service)
+        self.followup_nautico_tools = FollowUpNauticoTools(self.followup_service)
+        
+        # Inicializar serviço de áudio
+        self.audio_service = AudioService()
 
         self.is_initialized = False
 
@@ -159,6 +169,17 @@ class AgenticSDRStateless:
                 f"Histórico: {len(conversation_history)} msgs"
             )
 
+            # Etapa 2.5: Verificar se lead está em Atendimento Humano
+            emoji_logger.system_debug("👤 VERIFICAÇÃO HANDOFF - Verificando se IA deve ficar em silêncio...")
+            if await self.stage_tools.check_human_handoff_status(lead_info):
+                emoji_logger.system_info("🔇 SILÊNCIO ATIVADO - Lead em atendimento humano")
+                return "<SILENCE>", lead_info
+            emoji_logger.system_success("IA pode continuar - Lead não está em atendimento humano")
+
+            # Etapa 2.7: Verificar e executar Etapa 0 (Gatilho Inicial - Áudio)
+            emoji_logger.system_debug("🎵 VERIFICAÇÃO ETAPA 0 - Verificando se deve enviar áudio inicial...")
+            await self._handle_initial_trigger_audio(lead_info, phone, conversation_history)
+            
             # Etapa 3: Sincronizar com serviços externos (CRM)
             emoji_logger.system_debug("🔗 SINCRONIZAÇÃO EXTERNA - Conectando com CRM...")
             lead_info = await self._sync_external_services(lead_info, phone)
@@ -666,10 +687,16 @@ class AgenticSDRStateless:
         # 1. Carrega o prompt do sistema (persona) e injeta o contexto de data/hora.
         system_prompt = "Você é um assistente de vendas." # Fallback inicial
         try:
-            with open("app/prompts/prompt-agente.md", "r", encoding="utf-8") as f:
+            # Usar o prompt atualizado do Náutico
+            with open("app/prompts/prompt.agente-nautico.atualizado.md", "r", encoding="utf-8") as f:
                 system_prompt = f.read()
         except FileNotFoundError:
-            emoji_logger.system_warning("Arquivo de prompt principal não encontrado. Usando fallback.")
+            emoji_logger.system_warning("Arquivo de prompt atualizado não encontrado. Tentando prompt original.")
+            try:
+                with open("app/prompts/prompt-agente.md", "r", encoding="utf-8") as f:
+                    system_prompt = f.read()
+            except FileNotFoundError:
+                emoji_logger.system_warning("Nenhum arquivo de prompt encontrado. Usando fallback.")
 
         # Injeção de Contexto Temporal
         tz = pytz.timezone(settings.timezone)
@@ -785,3 +812,99 @@ class AgenticSDRStateless:
         
         if update_data:
             await self.crm_service.update_lead(kommo_lead_id, update_data)
+
+    async def _handle_initial_trigger_audio(
+        self,
+        lead_info: Dict[str, Any],
+        phone: str,
+        conversation_history: list
+    ) -> None:
+        """
+        ETAPA 0: GATILHO INICIAL - Gerencia o envio do áudio do presidente
+        Conforme prompt atualizado: envia áudio do Hélio dos Anjos em conversas novas
+        """
+        try:
+            # Verificar se é uma conversa nova (critério: poucos mensagens no histórico)
+            is_new_conversation = len(conversation_history) <= 2
+            
+            # Verificar se já enviou áudio inicial (evitar reenvio)
+            already_sent_audio = lead_info.get("initial_audio_sent", False)
+            
+            # Verificar se lead está em estágio inicial
+            current_stage = lead_info.get("current_stage", "").upper()
+            is_initial_stage = current_stage in ["NOVO_LEAD", "INITIAL_CONTACT", ""]
+            
+            if is_new_conversation and not already_sent_audio and is_initial_stage:
+                emoji_logger.system_info(
+                    f"🎵 ETAPA 0 ATIVADA - Enviando áudio inicial do presidente para {phone}"
+                )
+                
+                # Enviar áudio do presidente Hélio dos Anjos
+                audio_result = await self.audio_service.send_initial_audio(
+                    phone_number=phone,
+                    lead_info=lead_info
+                )
+                
+                if audio_result.get("success"):
+                    emoji_logger.service_success(
+                        f"✅ Áudio inicial enviado com sucesso para {phone}"
+                    )
+                    
+                    # Marcar que o áudio foi enviado para evitar reenvios
+                    lead_info["initial_audio_sent"] = True
+                    
+                    # Mover lead para "Em Qualificação" conforme prompt
+                    stage_result = await self.stage_tools.move_to_em_qualificacao(
+                        lead_info,
+                        notes="Áudio inicial enviado - Marina iniciando qualificação"
+                    )
+                    
+                    if stage_result.get("success"):
+                        emoji_logger.service_success(
+                            f"✅ Lead {lead_info.get('id')} movido para Em Qualificação"
+                        )
+                    
+                    # Agendar follow-ups automáticos do Náutico
+                    followup_result = await self.followup_nautico_tools.schedule_nautico_followups(
+                        lead_info, phone
+                    )
+                    
+                    if followup_result.get("success"):
+                        emoji_logger.followup_event(
+                            f"✅ {followup_result.get('total', 0)} follow-ups agendados para {phone}"
+                        )
+                    
+                    # Atualizar lead info no Supabase com flag de áudio enviado
+                    try:
+                        lead_id = lead_info.get("id")
+                        if lead_id:
+                            await supabase_client.update_lead(lead_id, {
+                                "initial_audio_sent": True,
+                                "audio_sent_at": datetime.now().isoformat()
+                            })
+                    except Exception as e:
+                        emoji_logger.system_warning(
+                            f"Erro ao atualizar flag de áudio no Supabase: {e}"
+                        )
+                else:
+                    emoji_logger.service_error(
+                        f"❌ Falha ao enviar áudio inicial: {audio_result.get('message')}"
+                    )
+            else:
+                # Log do motivo por não enviar
+                reasons = []
+                if not is_new_conversation:
+                    reasons.append("conversa não é nova")
+                if already_sent_audio:
+                    reasons.append("áudio já foi enviado")
+                if not is_initial_stage:
+                    reasons.append(f"estágio não é inicial ({current_stage})")
+                    
+                emoji_logger.system_debug(
+                    f"🎵 Áudio inicial não enviado para {phone} - Motivos: {', '.join(reasons)}"
+                )
+                
+        except Exception as e:
+            emoji_logger.system_error(
+                f"Erro na Etapa 0 (áudio inicial): {e}"
+            )

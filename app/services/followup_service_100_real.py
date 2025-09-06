@@ -201,6 +201,29 @@ class FollowUpServiceReal:
                 "message": f"Erro ao executar follow-ups: {e}"
             }
 
+    async def cancel_followup(
+        self, followup_id: str, reason: str = "Cancelado pelo usuário"
+    ) -> Dict[str, Any]:
+        """Cancela um follow-up específico"""
+        try:
+            await self.db.update_follow_up_status(
+                followup_id, "cancelled", reason
+            )
+            emoji_logger.followup_event(
+                f"🚫 Follow-up {followup_id} cancelado: {reason}"
+            )
+            return {
+                "success": True,
+                "message": f"Follow-up cancelado: {reason}",
+                "followup_id": followup_id
+            }
+        except Exception as e:
+            emoji_logger.service_error(f"Erro ao cancelar follow-up: {e}")
+            return {
+                "success": False,
+                "message": f"Erro ao cancelar follow-up: {e}"
+            }
+
     async def close(self):
         """Fecha conexões de forma segura"""
         pass

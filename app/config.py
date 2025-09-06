@@ -126,6 +126,9 @@ class Settings(BaseSettings):
     kommo_desqualificado_stage_id: int = Field(
         default=89709592, env="KOMMO_DESQUALIFICADO_STAGE_ID"
     )
+    kommo_novo_lead_stage_id: int = Field(
+        default=89709589, env="KOMMO_NOVO_LEAD_STAGE_ID"  
+    )
     api_base_url: str = Field(
         default="http://localhost:8000", env="API_BASE_URL"
     )

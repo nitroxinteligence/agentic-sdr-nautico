@@ -332,7 +332,8 @@ class SupabaseClient:
         self,
         follow_up_id: str,
         status: str,
-        executed_at: Optional[datetime] = None
+        executed_at: Optional[datetime] = None,
+        reason: str = None
     ) -> Dict[str, Any]:
         """Atualiza status do follow-up"""
         logger.debug(f"Attempting to update follow-up {follow_up_id} to status '{status}' with data: {executed_at}")
@@ -344,6 +345,9 @@ class SupabaseClient:
 
             if executed_at:
                 update_data['executed_at'] = executed_at.isoformat()
+                
+            if reason:
+                update_data['cancellation_reason'] = reason
 
             result = self.client.table('follow_ups').update(update_data).eq(
                 'id', follow_up_id
