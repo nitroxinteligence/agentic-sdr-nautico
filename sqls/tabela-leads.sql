@@ -29,6 +29,15 @@ create table public.leads (
   stage_name text null default 'Novo Lead',
   last_interaction_at timestamp with time zone null,
   notes text null,
+  initial_audio_sent boolean null default false,
+  payment_value decimal(10,2) null,
+  payer_name text null,
+  is_valid_nautico_payment boolean null default false,
+  ai_paused boolean null default false,
+  property_type text null,
+  interests jsonb null default '[]'::jsonb,
+  objections jsonb null default '[]'::jsonb,
+  phone text null,
   constraint leads_pkey primary key (id),
   constraint leads_phone_number_key unique (phone_number),
   constraint leads_chosen_flow_check check (
@@ -124,6 +133,28 @@ where
 create index IF not exists idx_leads_conversation_id on public.leads using btree (conversation_id) TABLESPACE pg_default
 where
   (conversation_id is not null);
+
+create index IF not exists idx_leads_initial_audio_sent on public.leads using btree (initial_audio_sent) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_valid_payment on public.leads using btree (is_valid_nautico_payment) TABLESPACE pg_default
+where
+  (is_valid_nautico_payment = true);
+
+create index IF not exists idx_leads_ai_paused on public.leads using btree (ai_paused) TABLESPACE pg_default
+where
+  (ai_paused = true);
+
+create index IF not exists idx_leads_property_type on public.leads using btree (property_type) TABLESPACE pg_default
+where
+  (property_type is not null);
+
+create index IF not exists idx_leads_interests on public.leads using gin (interests) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_objections on public.leads using gin (objections) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_phone_alt on public.leads using btree (phone) TABLESPACE pg_default
+where
+  (phone is not null);
 
 create trigger update_leads_updated_at BEFORE
 update on leads for EACH row
