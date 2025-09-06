@@ -151,6 +151,7 @@ class Settings(BaseSettings):
     )
     timezone: str = Field(default="America/Sao_Paulo", env="TIMEZONE")
     debug: bool = Field(default=False, env="DEBUG")
+    debug_kommo: bool = Field(default=False, env="DEBUG_KOMMO")
     environment: str = Field(default="production", env="ENVIRONMENT")
     log_level: str = Field(default="INFO")
     agno_model: str = Field(default="gemini-2.5-pro")

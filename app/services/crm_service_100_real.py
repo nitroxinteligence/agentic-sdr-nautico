@@ -152,60 +152,99 @@ class CRMServiceReal:
     async def _fetch_custom_fields(self):
         """Busca IDs dos campos customizados dinamicamente"""
         try:
+            emoji_logger.service_debug("🔍 Buscando campos customizados do Kommo...")
             await wait_for_kommo()
+            
             async with await self._get_session() as session:
-                async with session.get(
-                    f"{self.base_url}/api/v4/leads/custom_fields",
-                    headers=self.headers
-                ) as response:
+                url = f"{self.base_url}/api/v4/leads/custom_fields"
+                emoji_logger.service_debug(f"📡 GET {url}")
+                
+                async with session.get(url, headers=self.headers) as response:
                     if response.status == 200:
                         fields = await response.json()
+                        emoji_logger.service_debug(f"📥 Recebidos {len(fields.get('_embedded', {}).get('custom_fields', []))} campos do Kommo")
+                        
                         field_mapping = {
-                            "whatsapp": "whatsapp", "telefone": "phone",
-                            "phone": "phone", "interesse socio": "membership_interest",
-                            "interesse_socio": "membership_interest",
-                            "nivel interesse": "membership_interest",
-                            "interesse nivel": "membership_interest",
-                            "plano sócio": "membership_plan",
-                            "plano socio": "membership_plan",
-                            "tipo de plano": "membership_plan",
+                            # Campos essenciais que estão falhando
+                            "telefone": "phone",
+                            "phone": "phone", 
+                            "whatsapp": "whatsapp",
+                            "valor conta": "bill_value",
+                            "bill_value": "bill_value",
+                            "valor_conta": "bill_value",
+                            "tipo solução": "solution_type", 
+                            "solution_type": "solution_type",
+                            "tipo_solução": "solution_type",
                             "link do evento no google calendar": "calendar_link",
                             "link do evento": "calendar_link",
                             "google calendar": "calendar_link",
                             "calendario": "calendar_link",
+                            "calendar_link": "calendar_link",
+                            
+                            # Campos adicionais
+                            "interesse socio": "membership_interest",
+                            "interesse_socio": "membership_interest",
+                            "nivel interesse": "membership_interest",
+                            "plano sócio": "membership_plan",
+                            "plano socio": "membership_plan",
+                            "tipo de plano": "membership_plan",
                             "local da instalação": "location",
-                            "local_da_instalação": "location",
-                            "localização": "location", "endereço": "location",
+                            "localização": "location", 
+                            "endereço": "location",
                             "score qualificação": "score",
-                            "score_qualificação": "score", "score": "score",
+                            "score": "score",
                             "id conversa": "conversation_id",
                             "id_conversa": "conversation_id"
                         }
-                        for field in fields.get(
-                                "_embedded", {}
-                        ).get("custom_fields", []):
-                            field_name_lower = field.get("name", "").lower()
+                        
+                        found_fields = {}
+                        for field in fields.get("_embedded", {}).get("custom_fields", []):
+                            field_name = field.get("name", "").strip()
+                            field_name_lower = field_name.lower()
+                            field_id = field.get("id")
+                            
+                            emoji_logger.service_debug(f"🔍 Campo: '{field_name}' (ID: {field_id})")
+                            
                             for key, mapped_name in field_mapping.items():
-                                if key in field_name_lower:
-                                    self.custom_fields[mapped_name] = field.get("id")
+                                if key.lower() in field_name_lower:
+                                    self.custom_fields[mapped_name] = field_id
+                                    found_fields[mapped_name] = field_name
+                                    emoji_logger.service_debug(f"✅ Mapeado: {mapped_name} -> '{field_name}' (ID: {field_id})")
                                     break
-                        emoji_logger.service_info(
-                            f"📊 {len(self.custom_fields)} campos customizados mapeados"
-                        )
+                        
+                        mapped_count = len([v for v in self.custom_fields.values() if v])
+                        emoji_logger.service_info(f"📊 {mapped_count} campos customizados mapeados")
+                        
+                        # Log dos campos encontrados para debug
+                        if found_fields:
+                            emoji_logger.service_debug(f"🎯 Campos encontrados: {found_fields}")
+                        
+                    else:
+                        error_text = await response.text()
+                        emoji_logger.service_error(f"❌ Erro HTTP {response.status} ao buscar campos: {error_text}")
+                        raise Exception(f"HTTP {response.status}: {error_text}")
+                        
         except Exception as e:
-            emoji_logger.service_warning(
-                f"Erro ao buscar campos customizados: {e}"
-            )
-            missing_fields = [
-                f for f in [
-                    "phone", "bill_value", "solution_type", "calendar_link"
-                ] if not self.custom_fields.get(f)
-            ]
-            if missing_fields:
+            emoji_logger.service_warning(f"Erro ao buscar campos customizados: {str(e)}")
+            # Log para debug - quais campos estão faltando
+            empty_fields = [k for k, v in self.custom_fields.items() if not v]
+            if empty_fields:
+                emoji_logger.service_debug(f"❌ Campos não encontrados: {empty_fields}")
+            
+            # Verificar se há campos críticos faltando
+            critical_fields = ["phone", "whatsapp"]  # Apenas campos realmente críticos
+            missing_critical = [f for f in critical_fields if not self.custom_fields.get(f)]
+            
+            if missing_critical:
+                emoji_logger.service_error(f"❌ Campos críticos não encontrados: {missing_critical}")
                 raise KommoAPIException(
-                    f"Falha ao mapear campos essenciais: {missing_fields}",
-                    error_code="KOMMO_FIELD_MAPPING_ERROR"
+                    f"Campos críticos não encontrados no Kommo: {missing_critical}",
+                    error_code="KOMMO_CRITICAL_FIELDS_MISSING"
                 )
+            else:
+                # Se apenas campos opcionais estão faltando, continuar
+                emoji_logger.service_warning(f"⚠️ Alguns campos opcionais não encontrados: {empty_fields}")
+                emoji_logger.service_info("✅ Continuando com campos disponíveis...")
 
     async def _fetch_pipeline_stages(self):
         """Busca estágios do pipeline dinamicamente, criando um mapa resiliente."""
