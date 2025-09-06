@@ -152,17 +152,17 @@ class CRMServiceReal:
     async def _fetch_custom_fields(self):
         """Busca IDs dos campos customizados dinamicamente"""
         try:
-            emoji_logger.service_debug("🔍 Buscando campos customizados do Kommo...")
+            emoji_logger.service_info("🔍 Buscando campos customizados do Kommo...")
             await wait_for_kommo()
             
             async with await self._get_session() as session:
                 url = f"{self.base_url}/api/v4/leads/custom_fields"
-                emoji_logger.service_debug(f"📡 GET {url}")
+                emoji_logger.service_info(f"📡 GET {url}")
                 
                 async with session.get(url, headers=self.headers) as response:
                     if response.status == 200:
                         fields = await response.json()
-                        emoji_logger.service_debug(f"📥 Recebidos {len(fields.get('_embedded', {}).get('custom_fields', []))} campos do Kommo")
+                        emoji_logger.service_info(f"📥 Recebidos {len(fields.get('_embedded', {}).get('custom_fields', []))} campos do Kommo")
                         
                         field_mapping = {
                             # Campos essenciais que estão falhando
@@ -203,13 +203,13 @@ class CRMServiceReal:
                             field_name_lower = field_name.lower()
                             field_id = field.get("id")
                             
-                            emoji_logger.service_debug(f"🔍 Campo: '{field_name}' (ID: {field_id})")
+                            emoji_logger.service_info(f"🔍 Campo: '{field_name}' (ID: {field_id})")
                             
                             for key, mapped_name in field_mapping.items():
                                 if key.lower() in field_name_lower:
                                     self.custom_fields[mapped_name] = field_id
                                     found_fields[mapped_name] = field_name
-                                    emoji_logger.service_debug(f"✅ Mapeado: {mapped_name} -> '{field_name}' (ID: {field_id})")
+                                    emoji_logger.service_info(f"✅ Mapeado: {mapped_name} -> '{field_name}' (ID: {field_id})")
                                     break
                         
                         mapped_count = len([v for v in self.custom_fields.values() if v])
@@ -217,7 +217,7 @@ class CRMServiceReal:
                         
                         # Log dos campos encontrados para debug
                         if found_fields:
-                            emoji_logger.service_debug(f"🎯 Campos encontrados: {found_fields}")
+                            emoji_logger.service_info(f"🎯 Campos encontrados: {found_fields}")
                         
                     else:
                         error_text = await response.text()
@@ -229,7 +229,7 @@ class CRMServiceReal:
             # Log para debug - quais campos estão faltando
             empty_fields = [k for k, v in self.custom_fields.items() if not v]
             if empty_fields:
-                emoji_logger.service_debug(f"❌ Campos não encontrados: {empty_fields}")
+                emoji_logger.service_warning(f"❌ Campos não encontrados: {empty_fields}")
             
             # Verificar se há campos críticos faltando
             critical_fields = ["phone", "whatsapp"]  # Apenas campos realmente críticos
