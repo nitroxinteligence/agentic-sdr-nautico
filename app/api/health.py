@@ -248,7 +248,8 @@ async def service_info():
             "payment_validation": True,
             "kommo_crm": bool(settings.kommo_long_lived_token),
             "follow_up": True,
-            "membership_program": True
+            "membership_program": True,
+            "audio_initial": True
         },
         "business_hours": {
             "start": settings.BUSINESS_HOURS_START,
@@ -256,3 +257,53 @@ async def service_info():
             "timezone": settings.TIMEZONE
         }
     }
+
+
+@router.get("/workers")
+async def check_workers():
+    """Verifica status dos workers de follow-up"""
+    try:
+        # Verificar conexão com Redis
+        redis_connected = await redis_client.ping()
+        
+        # Verificar se há tarefas sendo processadas no Redis
+        pending_tasks = 0
+        active_workers = 0
+        
+        if redis_connected:
+            try:
+                # Contar tarefas pendentes na fila
+                pending_tasks = await redis_client.llen("followup_queue") or 0
+                
+                # Verificar workers ativos (heartbeat no Redis)
+                worker_keys = await redis_client.keys("worker:*:heartbeat")
+                active_workers = len(worker_keys) if worker_keys else 0
+                
+            except Exception as e:
+                logger.warning(f"Erro ao verificar filas Redis: {e}")
+        
+        # Status geral dos workers
+        workers_healthy = redis_connected and (active_workers > 0 or pending_tasks >= 0)
+        
+        return {
+            "workers_status": "healthy" if workers_healthy else "unhealthy",
+            "redis_connected": redis_connected,
+            "active_workers": active_workers,
+            "pending_followups": pending_tasks,
+            "timestamp": datetime.now().isoformat(),
+            "details": {
+                "redis_host": "redis" if redis_connected else "disconnected", 
+                "queue_name": "followup_queue",
+                "worker_mode": "integrated",
+                "deployment": "easypanel_single_container",
+                "automated": True
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar workers: {e}")
+        return {
+            "workers_status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }

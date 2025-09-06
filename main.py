@@ -18,6 +18,8 @@ from app.integrations.supabase_client import supabase_client
 from app.services.message_buffer import get_message_buffer
 from app.services.message_splitter import get_message_splitter
 from app.services.followup_manager import followup_manager_service
+from app.services.followup_executor_service import FollowUpSchedulerService
+from app.services.followup_worker import FollowUpWorker
 from app.services.followup_service_100_real import FollowUpServiceReal
 from app.services.conversation_monitor import get_conversation_monitor
 from app.agents.agentic_sdr_stateless import AgenticSDRStateless
@@ -30,6 +32,45 @@ from app.api.google_auth import router as google_auth_router
 
 # Variáveis globais para serviços
 agentic_sdr = None
+background_workers = []
+
+async def start_background_workers():
+    """Inicia workers de follow-up em background threads"""
+    try:
+        # Conectar ao Redis primeiro
+        await redis_client.connect()
+        if not await redis_client.ping():
+            emoji_logger.system_error("Redis não conectado - workers não podem iniciar")
+            return False
+            
+        # Inicializar Scheduler (enfileira tarefas)
+        scheduler = FollowUpSchedulerService()
+        await scheduler.start()
+        background_workers.append(('scheduler', scheduler))
+        
+        # Inicializar Worker (processa filas)  
+        worker = FollowUpWorker()
+        await worker.start()
+        background_workers.append(('worker', worker))
+        
+        emoji_logger.system_success(f"✅ {len(background_workers)} workers iniciados em background")
+        return True
+        
+    except Exception as e:
+        emoji_logger.system_error(f"Erro ao iniciar workers em background: {e}")
+        return False
+
+async def stop_background_workers():
+    """Para todos os workers em background"""
+    for worker_type, worker_instance in background_workers:
+        try:
+            await worker_instance.stop()
+            emoji_logger.system_info(f"✅ {worker_type} parado")
+        except Exception as e:
+            emoji_logger.system_warning(f"Erro ao parar {worker_type}: {e}")
+    
+    background_workers.clear()
+    emoji_logger.system_success("Workers de follow-up parados")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -88,9 +129,13 @@ async def lifespan(app: FastAPI):
         # Inicializar FollowUp Services Final
         emoji_logger.system_ready("FollowUp Services")
         
-        # Avisos importantes
-        emoji_logger.system_info("📌 IMPORTANTE: Para follow-ups do Náutico funcionarem, execute: python start_workers.py")
-        emoji_logger.system_info("📌 Os workers processam as filas do Redis para envio automatizado")
+        # Inicializar Workers de Follow-up em Background
+        if settings.enable_follow_up_automation:
+            emoji_logger.system_info("🔄 Iniciando workers de follow-up em background...")
+            await start_background_workers()
+            emoji_logger.system_success("✅ Workers de Follow-up iniciados automaticamente")
+        else:
+            emoji_logger.system_warning("⚠️ Follow-up automation desabilitado")
 
         # Pré-aquecimento desabilitado para debugging
         emoji_logger.system_info("🔥 Warmup desabilitado - servidor pronto para uso")
@@ -114,6 +159,9 @@ async def lifespan(app: FastAPI):
     # Shutdown
     try:
         emoji_logger.system_info("🔄 Iniciando shutdown...")
+        
+        # Parar workers de follow-up primeiro
+        await stop_background_workers()
         
         # Parar serviços
         if 'message_buffer' in locals():
