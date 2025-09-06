@@ -23,16 +23,6 @@ async def health_check():
     }
 
 
-@router.get("/health")
-async def health_endpoint():
-    """Endpoint /health para compatibilidade"""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "SDR IA Náutico"
-    }
-
-
 @router.get("/live")
 async def liveness():
     """Liveness probe para Kubernetes"""

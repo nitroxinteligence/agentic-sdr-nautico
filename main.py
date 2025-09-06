@@ -6,6 +6,7 @@ Ponto de entrada da aplicação FastAPI
 
 import asyncio
 import time
+from datetime import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -198,11 +199,21 @@ app.add_middleware(
 )
 
 # Registrar routers
-app.include_router(health_router)
+app.include_router(health_router, prefix="/health", tags=["health"])
 app.include_router(webhooks_router)
 app.include_router(kommo_router)
 app.include_router(google_auth_router)
 app.include_router(diagnostics_router, prefix="/diagnostics", tags=["diagnostics"])
+
+# Endpoint root de health (compatibilidade)
+@app.get("/health")
+async def root_health():
+    """Health check raiz para compatibilidade"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "service": "SDR IA Náutico"
+    }
 
 if __name__ == "__main__":
     import uvicorn
