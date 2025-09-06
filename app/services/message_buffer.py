@@ -144,6 +144,7 @@ class MessageBuffer:
         # Verificação de segurança para garantir que a carga útil da última mensagem exista
         if not last_message_data or not isinstance(last_message_data, dict):
             emoji_logger.system_error(
+                "Message Buffer",
                 "O campo 'data' da última mensagem no buffer é inválido ou None. Abortando processamento.",
                 last_message_obj=last_message_obj
             )
