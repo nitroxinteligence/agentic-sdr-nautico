@@ -1033,11 +1033,52 @@ class EvolutionAPIClient:
             logger.error(f"Erro ao conectar: {e}")
             return False
 
+    async def discover_instance_name(self) -> str:
+        """Descobre automaticamente o nome da instância ativa"""
+        try:
+            # Listar todas as instâncias
+            response = await self._make_request("get", "/instance/fetchInstances")
+            instances = response.json()
+            
+            if isinstance(instances, list) and len(instances) > 0:
+                # Pegar a primeira instância ativa
+                for instance in instances:
+                    if instance.get("connectionStatus", {}).get("state") == "open":
+                        return instance.get("name", instance.get("instanceName", ""))
+                
+                # Se nenhuma estiver conectada, pegar a primeira
+                return instances[0].get("name", instances[0].get("instanceName", ""))
+            
+            # Fallback para nome configurado
+            return self.instance_name
+            
+        except Exception as e:
+            logger.warning(f"Erro ao descobrir instância: {e}")
+            return self.instance_name
+
     async def test_connection(self) -> bool:
         """Testa a conexão com a Evolution API"""
         try:
-            info = await self.get_instance_info()
-            return info.get("state") == "open"
+            # Primeiro tenta com nome configurado
+            try:
+                info = await self.get_instance_info()
+                return info.get("state") == "open"
+            except Exception:
+                # Se falhar, tenta descobrir nome automaticamente
+                discovered_name = await self.discover_instance_name()
+                if discovered_name != self.instance_name:
+                    emoji_logger.system_info(f"Instância descoberta: {discovered_name}")
+                    # Atualiza temporariamente o nome
+                    old_name = self.instance_name
+                    self.instance_name = discovered_name
+                    try:
+                        info = await self.get_instance_info()
+                        return info.get("state") == "open"
+                    finally:
+                        # Restaura o nome original se não funcionou
+                        if info.get("state") != "open":
+                            self.instance_name = old_name
+                return False
         except Exception as e:
             logger.error(f"Erro ao testar conexão: {e}")
             return False
