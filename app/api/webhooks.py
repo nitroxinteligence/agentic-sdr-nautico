@@ -823,21 +823,24 @@ async def evolution_webhook(
         # Log completo dos dados para debug
         emoji_logger.system_debug(f"Evolution webhook data: {json.dumps(data, indent=2)[:500]}...")
 
-        if event == "MESSAGES_UPSERT":
+        # Normalizar nome do evento (suporte para formatos diferentes)
+        normalized_event = event.upper().replace(".", "_") if event else ""
+        
+        if normalized_event in ["MESSAGES_UPSERT", "MESSAGE_UPSERT"]:
             actual_data = data.get("data", data)
             background_tasks.add_task(process_new_message, actual_data)
-        elif event == "CONNECTION_UPDATE":
+        elif normalized_event == "CONNECTION_UPDATE":
             await process_connection_update(data.get("data", {}))
-        elif event == "QRCODE_UPDATED":
+        elif normalized_event == "QRCODE_UPDATED":
             await process_qrcode_update(data.get("data", {}))
-        elif event == "MESSAGES_UPDATE":
+        elif normalized_event in ["MESSAGES_UPDATE", "MESSAGE_UPDATE"]:
             await process_message_update(data.get("data", {}))
-        elif event == "PRESENCE_UPDATE":
+        elif normalized_event == "PRESENCE_UPDATE":
             await process_presence_update(data.get("data", {}))
-        elif event == "CONTACTS_UPDATE":
+        elif normalized_event == "CONTACTS_UPDATE":
             await process_contacts_update(data.get("data", {}))
         else:
-            emoji_logger.system_warning(f"Evento Evolution não reconhecido: {event}")
+            emoji_logger.system_warning(f"Evento Evolution não reconhecido: {event} (normalizado: {normalized_event})")
 
         return {"status": "ok", "event": event}
 
