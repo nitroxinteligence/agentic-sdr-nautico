@@ -98,31 +98,120 @@ class AgenticSDRStateless:
     def _extract_name_from_response(self, message: str) -> str:
         """
         Extrai nome quando usuário responde à pergunta "qual seu nome?"
+        Com validação rigorosa para evitar nomes inválidos
         """
         import re
         
         # Limpar mensagem
         clean_msg = message.strip().lower()
         
+        # Lista de palavras inválidas que não são nomes
+        invalid_words = {
+            'eu', 'me', 'mim', 'meu', 'minha', 'sim', 'não', 'ok', 'oi', 'olá', 
+            'bem', 'mal', 'bom', 'boa', 'obrigado', 'obrigada', 'valeu', 'brigado',
+            'náutico', 'clube', 'time', 'futebol', 'aqui', 'aí', 'lá', 'onde',
+            'quando', 'como', 'porque', 'qual', 'quem', 'que', 'o', 'a', 'um', 'uma',
+            'este', 'esta', 'esse', 'essa', 'isto', 'isso', 'ele', 'ela', 'eles', 'elas',
+            'nós', 'vocês', 'você', 'vc', 'voce', 'tu', 'teu', 'tua', 'seu', 'sua',
+            'sou', 'é', 'são', 'estou', 'está', 'estão', 'tem', 'tenho', 'tinha'
+        }
+        
         # Padrões de resposta com nome
         patterns = [
-            r"(?:meu nome é|me chamo|sou|eu sou)\s+([\w\s]{2,30})",
+            r"(?:meu nome é|me chamo|sou|eu sou|é)\s+([\w\s]{2,30})",
             r"^([\w\s]{2,30})$",  # Só o nome
             r"nome:\s*([\w\s]{2,30})",
+            r"(?:eu me chamo|chamo)\s+([\w\s]{2,30})",
         ]
         
         for pattern in patterns:
             match = re.search(pattern, clean_msg, re.IGNORECASE | re.UNICODE)
             if match:
                 name = match.group(1).strip().title()
+                name_words = name.lower().split()
                 
-                # Validações básicas
-                if (len(name) >= 2 and 
-                    not name.isdigit() and 
-                    not any(char in name.lower() for char in ['http', '@', '.com', 'www', 'náutico', 'clube'])):
+                # Validações rigorosas
+                if self._is_valid_name(name, name_words, invalid_words):
                     return name
         
         return None
+    
+    def _is_valid_name(self, name: str, name_words: list, invalid_words: set) -> bool:
+        """
+        Valida se o nome extraído é realmente um nome válido
+        """
+        import re
+        
+        # 1. Comprimento mínimo e máximo
+        if len(name) < 2 or len(name) > 50:
+            self._log_name_validation_details(name, f"Comprimento inválido: {len(name)} caracteres")
+            return False
+            
+        # 2. Não pode ser só números
+        if name.isdigit():
+            self._log_name_validation_details(name, "Contém apenas números")
+            return False
+            
+        # 3. Deve ter pelo menos uma letra
+        if not re.search(r'[a-záêôçãõéíúà]', name.lower()):
+            self._log_name_validation_details(name, "Não contém letras válidas")
+            return False
+            
+        # 4. Não pode conter caracteres inválidos
+        invalid_chars = ['@', '.com', 'www', 'http', '#', '$', '%', '&', '*', '+', '=']
+        for char in invalid_chars:
+            if char in name.lower():
+                self._log_name_validation_details(name, f"Contém caractere inválido: {char}")
+                return False
+            
+        # 5. Verificar palavras inválidas
+        invalid_found = [word for word in name_words if word in invalid_words]
+        if invalid_found:
+            self._log_name_validation_details(name, f"Contém palavras inválidas: {invalid_found}")
+            return False
+            
+        # 6. Não pode ser uma única palavra muito curta (< 3 caracteres)
+        if len(name_words) == 1 and len(name) < 3:
+            self._log_name_validation_details(name, "Palavra única muito curta")
+            return False
+            
+        # 7. Padrões específicos inválidos
+        invalid_patterns = [
+            (r'^(eu|me|mim|tu)$', "Pronome pessoal"),
+            (r'^(sim|não|ok|oi|olá)$', "Palavra comum não-nome"),
+            (r'^(a|o|um|uma|de|da|do)$', "Artigo ou preposição"),
+            (r'^\d+$', "Apenas números"),
+            (r'^[^a-záêôçãõéíúà]+$', "Sem letras do alfabeto"),
+        ]
+        
+        for pattern, description in invalid_patterns:
+            if re.match(pattern, name.lower()):
+                self._log_name_validation_details(name, description)
+                return False
+                
+        # 8. Deve parecer um nome brasileiro válido
+        # Aceita nomes compostos, mas pelo menos uma palavra deve ter 3+ caracteres
+        valid_word_found = False
+        for word in name_words:
+            if len(word) >= 3 and word.lower() not in invalid_words:
+                # Verificar se tem padrão de nome (não é sigla/abreviação)
+                if re.match(r'^[a-záêôçãõéíúà]+$', word.lower()):
+                    valid_word_found = True
+                    break
+                    
+        if not valid_word_found:
+            self._log_name_validation_details(name, "Nenhuma palavra válida encontrada (mín 3 chars)")
+            return False
+            
+        # Se chegou até aqui, é válido
+        emoji_logger.system_success(f"✅ Nome validado com sucesso: '{name}'")
+        return True
+    
+    def _log_name_validation_details(self, message: str, reason: str):
+        """Log detalhado dos motivos de rejeição de nome"""
+        emoji_logger.system_debug(
+            f"🚫 Nome rejeitado: '{message}' | Motivo: {reason}"
+        )
 
     async def initialize(self):
         """Inicialização dos módulos assíncronos"""
@@ -243,6 +332,7 @@ class AgenticSDRStateless:
             
             # ETAPA 0b: AGUARDANDO NOME - Processar resposta com nome
             elif conversation_state == 'waiting_name':
+                emoji_logger.system_debug(f"🔍 Analisando possível nome na mensagem: '{message}'")
                 extracted_name = self._extract_name_from_response(message)
                 
                 if extracted_name:
@@ -290,12 +380,25 @@ class AgenticSDRStateless:
                     
                     return response, lead_info
                 else:
-                    # Nome não identificado - tentar novamente
-                    emoji_logger.system_warning("❓ Nome não identificado, tentando novamente")
-                    response = (
-                        "Oxente, não consegui pegar teu nome direito. "
-                        "Pode me dizer de novo? É só pra eu te tratar do jeito certo, visse?"
-                    )
+                    # Nome não identificado ou inválido - tentar novamente
+                    emoji_logger.system_warning(f"❓ Nome inválido detectado: '{message}' - solicitando novamente")
+                    
+                    # Mensagens variadas para diferentes situações
+                    if len(message.strip()) < 3:
+                        response = (
+                            "Eita, acho que não entendi bem! Preciso do teu nome completo "
+                            "pra te atender direito. Pode me dizer teu nome e sobrenome?"
+                        )
+                    elif message.strip().lower() in ['eu', 'me', 'mim']:
+                        response = (
+                            "Opa, eu sei que é você mesmo! rsrs Mas preciso saber como te chamar. "
+                            "Qual é o teu nome? Me diz aí!"
+                        )
+                    else:
+                        response = (
+                            "Oxente, não consegui pegar teu nome direito. "
+                            "Pode me dizer teu nome completo? É só pra eu te tratar do jeito certo, visse?"
+                        )
                     return response, lead_info
 
             # Etapa 2: Atualizar histórico e contexto do lead (APENAS para estados avançados)
