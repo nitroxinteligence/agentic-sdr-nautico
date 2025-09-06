@@ -201,7 +201,7 @@ class ModelManager:
             if settings.primary_ai_model.startswith("gemini"):
                 self.primary_model = Gemini(
                     id=settings.primary_ai_model,
-                    api_key=settings.google_api_key
+                    api_key=settings.gemini_api_key or settings.google_api_key
                 )
                 emoji_logger.system_ready(
                     "Modelo primário Gemini configurado",
@@ -230,7 +230,7 @@ class ModelManager:
             if settings.agno_reasoning_enabled:
                 self.reasoning_model = Gemini(
                     id="gemini-2.0-flash-thinking",
-                    api_key=settings.google_api_key
+                    api_key=settings.gemini_api_key or settings.google_api_key
                 )
                 emoji_logger.system_ready(
                     "Modelo reasoning configurado",

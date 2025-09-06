@@ -839,6 +839,9 @@ async def evolution_webhook(
             await process_presence_update(data.get("data", {}))
         elif normalized_event == "CONTACTS_UPDATE":
             await process_contacts_update(data.get("data", {}))
+        elif normalized_event == "SEND_MESSAGE":
+            # Log de mensagem enviada (opcional)
+            emoji_logger.system_debug(f"Mensagem enviada confirmada: {data.get('data', {}).get('key', {}).get('id', 'N/A')}")
         else:
             emoji_logger.system_warning(f"Evento Evolution não reconhecido: {event} (normalizado: {normalized_event})")
 

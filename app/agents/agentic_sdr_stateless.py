@@ -688,7 +688,7 @@ class AgenticSDRStateless:
         system_prompt = "Você é um assistente de vendas." # Fallback inicial
         try:
             # Usar o prompt atualizado do Náutico
-            with open("app/prompts/prompt.agente-nautico.atualizado.md", "r", encoding="utf-8") as f:
+            with open("app/prompts/prompt-agente-nautico.atualizado.md", "r", encoding="utf-8") as f:
                 system_prompt = f.read()
         except FileNotFoundError:
             emoji_logger.system_warning("Arquivo de prompt atualizado não encontrado. Tentando prompt original.")

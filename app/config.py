@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     )
     openai_api_key: str = Field(default="", env="OPENAI_API_KEY")
     google_api_key: str = Field(default="", env="GOOGLE_API_KEY")
+    gemini_api_key: str = Field(default="", env="GEMINI_API_KEY")
     evolution_api_url: str = Field(env="EVOLUTION_API_URL")
     evolution_api_key: str = Field(env="EVOLUTION_API_KEY")
     evolution_instance_name: str = Field(env="EVOLUTION_INSTANCE_NAME")
