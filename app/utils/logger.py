@@ -358,6 +358,10 @@ class EmojiLogger:
         cls.log_with_emoji("INFO", "info", f"Service: {message}", **kwargs)
 
     @classmethod
+    def service_debug(cls, message: str, **kwargs):
+        cls.log_with_emoji("DEBUG", "debug", f"Service: {message}", **kwargs)
+
+    @classmethod
     def model_error(cls, message: str, **kwargs):
         cls.log_with_emoji("ERROR", "error", f"Model: {message}", **kwargs)
 
