@@ -214,7 +214,9 @@ class RedisClient:
                 return safe_json_loads(value)
             return None
         except Exception as e:
-            logger.error(f"Erro ao desenfileirar de {queue_name}: {e}")
+            # Suprimir erro durante shutdown (conexão fechada pelo servidor)
+            if "Connection closed by server" not in str(e):
+                logger.error(f"Erro ao desenfileirar de {queue_name}: {e}")
             return None
 
     async def queue_size(self, queue_name: str) -> int:

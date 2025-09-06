@@ -29,6 +29,7 @@ from app.api.health import router as health_router
 from app.api.webhooks import router as webhooks_router
 from app.api.kommo_webhook import router as kommo_router
 from app.api.google_auth import router as google_auth_router
+from app.api.diagnostics import router as diagnostics_router
 
 # Variáveis globais para serviços
 agentic_sdr = None
@@ -201,6 +202,7 @@ app.include_router(health_router)
 app.include_router(webhooks_router)
 app.include_router(kommo_router)
 app.include_router(google_auth_router)
+app.include_router(diagnostics_router, prefix="/diagnostics", tags=["diagnostics"])
 
 if __name__ == "__main__":
     import uvicorn

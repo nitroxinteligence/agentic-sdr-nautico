@@ -92,6 +92,7 @@ scipy==1.11.4  # Para funcionalidades estatísticas do NLTK
 
 # Logging
 loguru==0.7.2
+psutil==6.0.0
 
 # Image Processing (for multimodal)
 Pillow==10.3.0
