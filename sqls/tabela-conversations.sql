@@ -12,6 +12,10 @@ create table public.conversations (
   metadata jsonb null,
   status character varying(20) null default 'ACTIVE'::character varying,
   emotional_state text null default 'ENTUSIASMADA'::text,
+  last_message_at timestamp with time zone null default CURRENT_TIMESTAMP,
+  message_count integer null default 0,
+  is_new_conversation boolean null default true,
+  follow_up_scheduled boolean null default false,
   constraint conversations_pkey primary key (id),
   constraint conversations_session_id_key unique (session_id),
   constraint conversations_lead_id_fkey foreign KEY (lead_id) references leads (id) on delete CASCADE,
@@ -44,6 +48,12 @@ create index IF not exists idx_conversations_created on public.conversations usi
 create index IF not exists idx_conversations_created_brin on public.conversations using brin (created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_conversations_phone on public.conversations using btree (phone_number) TABLESPACE pg_default;
+
+create index IF not exists idx_conversations_status on public.conversations using btree (status) TABLESPACE pg_default;
+
+create index IF not exists idx_conversations_last_message on public.conversations using btree (last_message_at) TABLESPACE pg_default;
+
+create index IF not exists idx_conversations_message_count on public.conversations using btree (message_count) TABLESPACE pg_default;
 
 create trigger update_conversations_updated_at BEFORE
 update on conversations for EACH row

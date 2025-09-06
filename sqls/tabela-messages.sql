@@ -8,6 +8,12 @@ create table public.messages (
   created_at timestamp with time zone null default CURRENT_TIMESTAMP,
   message_type character varying(20) null default 'text'::character varying,
   sender character varying(20) null,
+  phone_number character varying(50) null,
+  media_url text null,
+  is_from_bot boolean null default false,
+  evolution_message_id text null,
+  whatsapp_message_id text null,
+  timestamp timestamp with time zone null default CURRENT_TIMESTAMP,
   constraint messages_pkey primary key (id),
   constraint messages_conversation_id_fkey foreign KEY (conversation_id) references conversations (id) on delete CASCADE,
   constraint messages_media_type_check check (
@@ -48,3 +54,11 @@ create index IF not exists idx_messages_role on public.messages using btree (rol
 create index IF not exists idx_messages_created on public.messages using btree (created_at) TABLESPACE pg_default;
 
 create index IF not exists idx_messages_created_brin on public.messages using brin (created_at) TABLESPACE pg_default;
+
+create index IF not exists idx_messages_phone on public.messages using btree (phone_number) TABLESPACE pg_default;
+
+create index IF not exists idx_messages_timestamp on public.messages using btree (timestamp) TABLESPACE pg_default;
+
+create index IF not exists idx_messages_evolution_id on public.messages using btree (evolution_message_id) TABLESPACE pg_default;
+
+create index IF not exists idx_messages_whatsapp_id on public.messages using btree (whatsapp_message_id) TABLESPACE pg_default;

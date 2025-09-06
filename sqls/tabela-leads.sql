@@ -18,6 +18,17 @@ create table public.leads (
   total_messages integer null default 0,
   interaction_count integer null default 0,
   processed_message_count integer null default 0,
+  chosen_membership_plan text null,
+  membership_interest_level text null,
+  location text null,
+  conversation_id text null,
+  solution_type text null,
+  bill_value decimal(10,2) null,
+  calendar_link text null,
+  stage_id text null,
+  stage_name text null default 'Novo Lead',
+  last_interaction_at timestamp with time zone null,
+  notes text null,
   constraint leads_pkey primary key (id),
   constraint leads_phone_number_key unique (phone_number),
   constraint leads_chosen_flow_check check (
@@ -99,6 +110,20 @@ create index IF not exists idx_leads_qualification_status_new on public.leads us
 create index IF not exists idx_leads_membership_interest on public.leads using btree (membership_interest) TABLESPACE pg_default
 where
   (membership_interest > 0);
+
+create index IF not exists idx_leads_stage_id on public.leads using btree (stage_id) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_stage_name on public.leads using btree (stage_name) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_kommo_lead_id on public.leads using btree (kommo_lead_id) TABLESPACE pg_default;
+
+create index IF not exists idx_leads_location on public.leads using btree (location) TABLESPACE pg_default
+where
+  (location is not null);
+
+create index IF not exists idx_leads_conversation_id on public.leads using btree (conversation_id) TABLESPACE pg_default
+where
+  (conversation_id is not null);
 
 create trigger update_leads_updated_at BEFORE
 update on leads for EACH row

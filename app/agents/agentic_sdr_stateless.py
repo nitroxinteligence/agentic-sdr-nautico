@@ -215,6 +215,7 @@ class AgenticSDRStateless:
         except Exception as e:
             import traceback
             error_trace = traceback.format_exc()
+            phone = execution_context.get("phone", "UNKNOWN")
             emoji_logger.system_error(
                 f"AgenticSDRStateless - ❌ ERRO CRÍTICO NO AGENTE: {e}",
                 traceback=error_trace
@@ -341,7 +342,8 @@ class AgenticSDRStateless:
         # CONDIÇÃO DE CRIAÇÃO: Lead ainda não foi salvo no banco (sem 'id')
         # Removida exigência de nome para capturar todos os contatos desde primeira interação
         if not lead_info.get("id"):
-            emoji_logger.system_info(f"Iniciando criação de novo lead para {phone} com nome '{lead_info.get('name')}'.")
+            lead_name = lead_info.get('name') or "Lead Náutico"
+            emoji_logger.system_info(f"Iniciando criação de novo lead para {phone} com nome '{lead_name}'.")
             try:
                 # 1. Criar no Supabase para obter um ID estável
                 lead_data_to_create = {**lead_info, "phone_number": phone}
@@ -817,7 +819,7 @@ class AgenticSDRStateless:
         self,
         lead_info: Dict[str, Any],
         phone: str,
-        conversation_history: list
+        conversation_history: list[dict]
     ) -> None:
         """
         ETAPA 0: GATILHO INICIAL - Gerencia o envio do áudio do presidente

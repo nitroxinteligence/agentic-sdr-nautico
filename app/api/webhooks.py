@@ -795,6 +795,7 @@ async def evolution_webhook(
             return {"status": "ok", "message": "Empty body received"}
         
         # Tentar decodificar JSON
+        body_str = ""
         try:
             body_str = body.decode('utf-8')
             data = json.loads(body_str)
@@ -842,6 +843,7 @@ async def evolution_webhook(
         elif normalized_event == "SEND_MESSAGE":
             # Log de mensagem enviada (opcional)
             emoji_logger.system_debug(f"Mensagem enviada confirmada: {data.get('data', {}).get('key', {}).get('id', 'N/A')}")
+            return {"status": "ok", "event": event, "message": "Message sent event processed"}
         else:
             emoji_logger.system_warning(f"Evento Evolution não reconhecido: {event} (normalizado: {normalized_event})")
 
