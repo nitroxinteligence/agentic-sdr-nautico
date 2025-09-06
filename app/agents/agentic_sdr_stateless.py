@@ -74,6 +74,56 @@ class AgenticSDRStateless:
 
         self.is_initialized = False
 
+    async def _get_conversation_state(self, lead_info: Dict[str, Any]) -> str:
+        """
+        Determina estado atual da conversa para controlar fluxo de coleta de nome
+        Returns: 'new', 'waiting_name', 'name_collected', 'qualified'
+        """
+        # Conversa totalmente nova - sem ID
+        if not lead_info.get("id"):
+            return 'new'
+            
+        # Lead existe mas sem nome - aguardando coleta
+        if lead_info.get("id") and not lead_info.get("name"):
+            return 'waiting_name'
+            
+        # Lead com nome coletado
+        if (lead_info.get("id") and 
+            lead_info.get("name") and 
+            lead_info.get("name") != "Lead Náutico"):
+            return 'name_collected'
+            
+        return 'qualified'
+
+    def _extract_name_from_response(self, message: str) -> str:
+        """
+        Extrai nome quando usuário responde à pergunta "qual seu nome?"
+        """
+        import re
+        
+        # Limpar mensagem
+        clean_msg = message.strip().lower()
+        
+        # Padrões de resposta com nome
+        patterns = [
+            r"(?:meu nome é|me chamo|sou|eu sou)\s+([\w\s]{2,30})",
+            r"^([\w\s]{2,30})$",  # Só o nome
+            r"nome:\s*([\w\s]{2,30})",
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, clean_msg, re.IGNORECASE | re.UNICODE)
+            if match:
+                name = match.group(1).strip().title()
+                
+                # Validações básicas
+                if (len(name) >= 2 and 
+                    not name.isdigit() and 
+                    not any(char in name.lower() for char in ['http', '@', '.com', 'www', 'náutico', 'clube'])):
+                    return name
+        
+        return None
+
     async def initialize(self):
         """Inicialização dos módulos assíncronos"""
         if self.is_initialized:
@@ -161,7 +211,94 @@ class AgenticSDRStateless:
             await self.conversation_monitor.register_message(phone=phone, is_from_user=True, lead_info=lead_info)
             emoji_logger.system_success("Mensagem do usuário registrada")
 
-            # Etapa 2: Atualizar histórico e contexto do lead
+            # NOVO: Verificar estado da conversa ANTES de processar
+            conversation_state = await self._get_conversation_state(lead_info)
+            emoji_logger.system_debug(f"🔄 Estado da conversa: {conversation_state}")
+            
+            # ETAPA 0a: NOVA CONVERSA - Perguntar nome primeiro
+            if conversation_state == 'new':
+                emoji_logger.agentic_start("🆕 Nova conversa - perguntando nome antes de criar lead")
+                
+                response = (
+                    "Opa, tudo joia? Aqui é Marina Campelo, do Náutico! "
+                    "Vi que você respondeu nossa mensagem e mostrou interesse no clube. "
+                    "Que massa! Antes de mais nada, me diz teu nome pra eu te atender direito, visse?"
+                )
+                
+                # Criar lead temporário APENAS para manter estado (sem nome ainda)
+                temp_lead_data = {
+                    "phone_number": phone,
+                    "name": None,  # IMPORTANTE: Sem nome ainda
+                    "current_stage": "AGUARDANDO_NOME"
+                }
+                
+                try:
+                    created_lead = await supabase_client.create_lead(temp_lead_data)
+                    lead_info.update(created_lead)
+                    emoji_logger.system_success(f"Lead temporário criado: {lead_info.get('id')}")
+                except Exception as e:
+                    emoji_logger.system_error(f"Erro ao criar lead temporário: {e}")
+                
+                return response, lead_info
+            
+            # ETAPA 0b: AGUARDANDO NOME - Processar resposta com nome
+            elif conversation_state == 'waiting_name':
+                extracted_name = self._extract_name_from_response(message)
+                
+                if extracted_name:
+                    emoji_logger.agentic_success(f"👤 Nome coletado com sucesso: {extracted_name}")
+                    
+                    # Atualizar lead no Supabase com nome
+                    await supabase_client.update_lead(lead_info["id"], {
+                        "name": extracted_name,
+                        "current_stage": "INITIAL_CONTACT"
+                    })
+                    lead_info["name"] = extracted_name
+                    
+                    # AGORA SIM: Criar no Kommo CRM com nome real
+                    if self.crm_service:
+                        try:
+                            emoji_logger.system_info(f"🏢 Criando lead '{extracted_name}' no Kommo CRM...")
+                            kommo_response = await self.crm_service.create_lead(lead_info)
+                            
+                            if kommo_response.get("success"):
+                                kommo_id = kommo_response.get("lead_id")
+                                lead_info["kommo_lead_id"] = kommo_id
+                                
+                                await supabase_client.update_lead(lead_info["id"], {
+                                    "kommo_lead_id": kommo_id
+                                })
+                                
+                                emoji_logger.team_crm(f"✅ Lead '{extracted_name}' criado no Kommo: ID {kommo_id}")
+                            else:
+                                emoji_logger.system_warning(f"Erro ao criar '{extracted_name}' no Kommo")
+                        except Exception as e:
+                            emoji_logger.system_error(f"Falha ao criar no Kommo: {e}")
+                    
+                    # AGORA SIM: Enviar áudio personalizado
+                    await self._handle_initial_trigger_audio(lead_info, phone, [])
+                    
+                    # Resposta personalizada conectando com áudio
+                    response = (
+                        f"Pronto, {extracted_name}! Acabei de te mandar um recado especial "
+                        f"do nosso comandante Hélio dos Anjos. Dá uma escutada aí que é importante! "
+                        f"A gente tá numa missão e cada alvirrubro conta muito."
+                    )
+                    
+                    # Mover para qualificação
+                    await self.stage_tools.qualify_lead(lead_info)
+                    
+                    return response, lead_info
+                else:
+                    # Nome não identificado - tentar novamente
+                    emoji_logger.system_warning("❓ Nome não identificado, tentando novamente")
+                    response = (
+                        "Oxente, não consegui pegar teu nome direito. "
+                        "Pode me dizer de novo? É só pra eu te tratar do jeito certo, visse?"
+                    )
+                    return response, lead_info
+
+            # Etapa 2: Atualizar histórico e contexto do lead (APENAS para estados avançados)
             emoji_logger.system_debug("🔄 ATUALIZANDO CONTEXTO - Processando lead e histórico...")
             conversation_history, lead_info = await self._update_context(message, conversation_history, lead_info, execution_context.get("media"))
             emoji_logger.system_success(
@@ -333,49 +470,14 @@ class AgenticSDRStateless:
 
     async def _sync_external_services(self, lead_info: dict, phone: str) -> dict:
         """
-        Cria e sincroniza informações do lead com Supabase e Kommo.
-        A criação ocorre quando o lead ainda não tem um ID do Supabase, garantindo
-        captura de todos os contatos desde a primeira interação.
+        MODIFICADO: Sincroniza leads existentes com Kommo após coleta de nome
+        Não cria mais leads automaticamente - isso é feito no fluxo de estados
         """
-        # Supabase é sempre necessário para operações de lead
-            
-        # CONDIÇÃO DE CRIAÇÃO: Lead ainda não foi salvo no banco (sem 'id')
-        # Removida exigência de nome para capturar todos os contatos desde primeira interação
+        # Se não tem ID, significa que a criação é controlada pelo fluxo de estados
+        # Não fazemos nada aqui
         if not lead_info.get("id"):
-            lead_name = lead_info.get('name') or "Lead Náutico"
-            emoji_logger.system_info(f"Iniciando criação de novo lead para {phone} com nome '{lead_name}'.")
-            try:
-                # 1. Criar no Supabase para obter um ID estável
-                lead_data_to_create = {**lead_info, "phone_number": phone}
-                created_supabase_lead = await supabase_client.create_lead(lead_data_to_create)
-                
-                if not created_supabase_lead or not created_supabase_lead.get("id"):
-                    emoji_logger.system_error("Lead Creation", "Falha crítica: Supabase não retornou um lead válido após a criação.")
-                    return lead_info # Retorna o lead_info original sem ID
-
-                lead_info.update(created_supabase_lead)
-                emoji_logger.supabase_insert("leads", 1, phone=phone, name=lead_info.get("name"), lead_id=lead_info.get("id"))
-
-                # 2. Criar no Kommo, agora que temos um ID do Supabase
-                try:
-                    emoji_logger.system_info(f"Tentando criar lead no Kommo para o lead_id {lead_info.get('id')}.")
-                    kommo_response = await self.crm_service.create_lead(lead_info)
-                    if kommo_response.get("success"):
-                        new_kommo_id = kommo_response.get("lead_id")
-                        lead_info["kommo_lead_id"] = new_kommo_id
-                        
-                        # 3. Atualizar o lead do Supabase com o ID do Kommo
-                        await supabase_client.update_lead(lead_info["id"], {"kommo_lead_id": new_kommo_id})
-                        emoji_logger.team_crm(f"Lead criado no Kommo com ID: {new_kommo_id} e sincronizado com Supabase.")
-                    else:
-                        emoji_logger.system_warning("Não foi possível criar o lead no Kommo, mas o lead do Supabase foi criado.", lead_id=lead_info.get("id"))
-                except Exception as crm_error:
-                    emoji_logger.system_debug(f"CRM não disponível ou erro na criação: {str(crm_error)}")
-
-            except Exception as e:
-                emoji_logger.system_error("Lead Creation", f"Falha na criação e sincronização inicial do lead: {str(e)}", traceback_info=traceback.format_exc())
-                # Retorna o lead_info original para não quebrar o fluxo principal
-                return lead_info
+            emoji_logger.system_debug("Lead sem ID - criação controlada pelo fluxo de estados")
+            return lead_info
 
         # CONDIÇÃO DE SINCRONIZAÇÃO: Lead já existe no Supabase, mas ainda não no Kommo
         elif lead_info.get("id") and lead_info.get("name") and not lead_info.get("kommo_lead_id"):
@@ -823,9 +925,16 @@ class AgenticSDRStateless:
     ) -> None:
         """
         ETAPA 0: GATILHO INICIAL - Gerencia o envio do áudio do presidente
-        Conforme prompt atualizado: envia áudio do Hélio dos Anjos em conversas novas
+        MODIFICADO: Só envia áudio após coleta do nome conforme prompt atualizado
         """
         try:
+            # NOVA VALIDAÇÃO: Só enviar se tem nome real coletado
+            if not lead_info.get("name") or lead_info.get("name") == "Lead Náutico":
+                emoji_logger.system_debug(
+                    f"⏸️ Áudio bloqueado - aguardando coleta de nome para {phone}"
+                )
+                return
+            
             # Verificar se é uma conversa nova (critério: poucos mensagens no histórico)
             is_new_conversation = len(conversation_history) <= 2
             
