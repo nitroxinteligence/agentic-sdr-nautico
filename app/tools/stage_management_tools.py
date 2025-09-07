@@ -34,44 +34,49 @@ class StageManagementTools:
         Usado na ETAPA 0 após o áudio do presidente
         """
         try:
-            lead_id = lead_info.get("id") or lead_info.get("kommo_lead_id")
+            # Para operações no CRM, usar kommo_lead_id (inteiro), para Supabase usar id (UUID)
+            kommo_lead_id = lead_info.get("kommo_lead_id")
+            supabase_lead_id = lead_info.get("id")
             phone = lead_info.get("phone") or lead_info.get("phone_number")
             
-            if not lead_id:
+            if not kommo_lead_id and not supabase_lead_id:
                 emoji_logger.service_warning("ID do lead não encontrado para movimentação de estágio")
                 return {"success": False, "message": "Lead ID não encontrado"}
 
-            # Atualizar no CRM se disponível
-            if self.crm_service:
+            # Atualizar no CRM se disponível e tiver kommo_lead_id
+            if self.crm_service and kommo_lead_id:
                 result = await self.crm_service.update_lead_stage(
-                    lead_id=str(lead_id),
+                    lead_id=str(kommo_lead_id),
                     stage_name="em_qualificacao",
                     notes=notes,
                     phone_number=phone
                 )
                 
                 if result.get("success"):
-                    emoji_logger.service_info(f"✅ Lead {lead_id} movido para 'Em Qualificação' no CRM")
+                    emoji_logger.service_info(f"✅ Lead {kommo_lead_id} movido para 'Em Qualificação' no CRM")
                 else:
-                    emoji_logger.service_warning(f"Falha ao mover lead {lead_id} no CRM: {result.get('message')}")
+                    emoji_logger.service_warning(f"Falha ao mover lead {kommo_lead_id} no CRM: {result.get('message')}")
+            elif self.crm_service and not kommo_lead_id:
+                emoji_logger.service_warning("Lead não tem kommo_lead_id - pulando atualização no CRM")
 
-            # Atualizar no Supabase
-            try:
-                update_data = {
-                    "current_stage": "EM_QUALIFICACAO", 
-                    "qualification_status": "IN_PROGRESS",
-                    "stage_updated_at": datetime.now().isoformat()
-                }
-                await supabase_client.update_lead(lead_id, update_data)
-                emoji_logger.service_success(f"Lead {lead_id} atualizado no Supabase - Em Qualificação")
-            except Exception as e:
-                emoji_logger.service_error(f"Erro ao atualizar lead no Supabase: {e}")
+            # Atualizar no Supabase se tiver supabase_lead_id
+            if supabase_lead_id:
+                try:
+                    update_data = {
+                        "current_stage": "EM_QUALIFICACAO", 
+                        "qualification_status": "IN_PROGRESS"
+                    }
+                    await supabase_client.update_lead(supabase_lead_id, update_data)
+                    emoji_logger.service_success(f"Lead {supabase_lead_id} atualizado no Supabase - Em Qualificação")
+                except Exception as e:
+                    emoji_logger.service_error(f"Erro ao atualizar lead no Supabase: {e}")
 
             return {
                 "success": True,
                 "message": "Lead movido para Em Qualificação",
                 "stage": "em_qualificacao", 
-                "lead_id": lead_id
+                "kommo_lead_id": kommo_lead_id,
+                "supabase_lead_id": supabase_lead_id
             }
 
         except Exception as e:
@@ -93,10 +98,12 @@ class StageManagementTools:
         Usado na ETAPA 5 após validação do comprovante
         """
         try:
-            lead_id = lead_info.get("id") or lead_info.get("kommo_lead_id")
+            # Para operações no CRM, usar kommo_lead_id (inteiro), para Supabase usar id (UUID)
+            kommo_lead_id = lead_info.get("kommo_lead_id")
+            supabase_lead_id = lead_info.get("id")
             phone = lead_info.get("phone") or lead_info.get("phone_number")
             
-            if not lead_id:
+            if not kommo_lead_id and not supabase_lead_id:
                 emoji_logger.service_warning("ID do lead não encontrado para qualificação")
                 return {"success": False, "message": "Lead ID não encontrado"}
 
@@ -104,43 +111,46 @@ class StageManagementTools:
             if payment_value:
                 notes = f"{notes} - Valor: R$ {payment_value}"
             
-            # Atualizar no CRM se disponível  
-            if self.crm_service:
+            # Atualizar no CRM se disponível e tiver kommo_lead_id
+            if self.crm_service and kommo_lead_id:
                 result = await self.crm_service.update_lead_stage(
-                    lead_id=str(lead_id),
+                    lead_id=str(kommo_lead_id),
                     stage_name="qualificado", 
                     notes=notes,
                     phone_number=phone
                 )
                 
                 if result.get("success"):
-                    emoji_logger.service_info(f"✅ Lead {lead_id} QUALIFICADO no CRM")
+                    emoji_logger.service_info(f"✅ Lead {kommo_lead_id} QUALIFICADO no CRM")
                 else:
-                    emoji_logger.service_warning(f"Falha ao qualificar lead {lead_id} no CRM: {result.get('message')}")
+                    emoji_logger.service_warning(f"Falha ao qualificar lead {kommo_lead_id} no CRM: {result.get('message')}")
+            elif self.crm_service and not kommo_lead_id:
+                emoji_logger.service_warning("Lead não tem kommo_lead_id - pulando atualização no CRM")
 
-            # Atualizar no Supabase
-            try:
-                update_data = {
-                    "current_stage": "QUALIFICADO",
-                    "qualification_status": "QUALIFIED", 
-                    "qualified_at": datetime.now().isoformat(),
-                    "stage_updated_at": datetime.now().isoformat()
-                }
-                
-                if payment_value:
-                    update_data["bill_value"] = payment_value
-                    update_data["payment_confirmed"] = payment_valid
+            # Atualizar no Supabase se tiver supabase_lead_id
+            if supabase_lead_id:
+                try:
+                    update_data = {
+                        "current_stage": "QUALIFICADO",
+                        "qualification_status": "QUALIFIED", 
+                        "qualified_at": datetime.now().isoformat()
+                    }
                     
-                await supabase_client.update_lead(lead_id, update_data)
-                emoji_logger.service_success(f"Lead {lead_id} QUALIFICADO no Supabase")
-            except Exception as e:
-                emoji_logger.service_error(f"Erro ao qualificar lead no Supabase: {e}")
+                    if payment_value:
+                        update_data["bill_value"] = payment_value
+                        update_data["payment_confirmed"] = payment_valid
+                        
+                    await supabase_client.update_lead(supabase_lead_id, update_data)
+                    emoji_logger.service_success(f"Lead {supabase_lead_id} QUALIFICADO no Supabase")
+                except Exception as e:
+                    emoji_logger.service_error(f"Erro ao qualificar lead no Supabase: {e}")
 
             return {
                 "success": True,
                 "message": "Lead qualificado com sucesso",
                 "stage": "qualificado",
-                "lead_id": lead_id,
+                "kommo_lead_id": kommo_lead_id,
+                "supabase_lead_id": supabase_lead_id,
                 "payment_value": payment_value
             }
 
@@ -162,48 +172,53 @@ class StageManagementTools:
         Usado após 48h sem resposta ou resposta negativa
         """
         try:
-            lead_id = lead_info.get("id") or lead_info.get("kommo_lead_id")
+            # Para operações no CRM, usar kommo_lead_id (inteiro), para Supabase usar id (UUID)
+            kommo_lead_id = lead_info.get("kommo_lead_id")
+            supabase_lead_id = lead_info.get("id")
             phone = lead_info.get("phone") or lead_info.get("phone_number")
             
-            if not lead_id:
+            if not kommo_lead_id and not supabase_lead_id:
                 emoji_logger.service_warning("ID do lead não encontrado para desqualificação")
                 return {"success": False, "message": "Lead ID não encontrado"}
 
             full_notes = f"{notes} - Motivo: {reason}"
             
-            # Atualizar no CRM se disponível
-            if self.crm_service:
+            # Atualizar no CRM se disponível e tiver kommo_lead_id
+            if self.crm_service and kommo_lead_id:
                 result = await self.crm_service.update_lead_stage(
-                    lead_id=str(lead_id),
+                    lead_id=str(kommo_lead_id),
                     stage_name="desqualificado",
                     notes=full_notes,
                     phone_number=phone
                 )
                 
                 if result.get("success"):
-                    emoji_logger.service_info(f"❌ Lead {lead_id} DESQUALIFICADO no CRM")
+                    emoji_logger.service_info(f"❌ Lead {kommo_lead_id} DESQUALIFICADO no CRM")
                 else:
-                    emoji_logger.service_warning(f"Falha ao desqualificar lead {lead_id} no CRM: {result.get('message')}")
+                    emoji_logger.service_warning(f"Falha ao desqualificar lead {kommo_lead_id} no CRM: {result.get('message')}")
+            elif self.crm_service and not kommo_lead_id:
+                emoji_logger.service_warning("Lead não tem kommo_lead_id - pulando atualização no CRM")
 
-            # Atualizar no Supabase
-            try:
-                update_data = {
-                    "current_stage": "DESQUALIFICADO",
-                    "qualification_status": "DISQUALIFIED",
-                    "disqualified_at": datetime.now().isoformat(),
-                    "disqualification_reason": reason,
-                    "stage_updated_at": datetime.now().isoformat()
-                }
-                await supabase_client.update_lead(lead_id, update_data) 
-                emoji_logger.service_success(f"Lead {lead_id} DESQUALIFICADO no Supabase")
-            except Exception as e:
-                emoji_logger.service_error(f"Erro ao desqualificar lead no Supabase: {e}")
+            # Atualizar no Supabase se tiver supabase_lead_id
+            if supabase_lead_id:
+                try:
+                    update_data = {
+                        "current_stage": "DESQUALIFICADO",
+                        "qualification_status": "DISQUALIFIED",
+                        "disqualified_at": datetime.now().isoformat(),
+                        "disqualification_reason": reason
+                    }
+                    await supabase_client.update_lead(supabase_lead_id, update_data) 
+                    emoji_logger.service_success(f"Lead {supabase_lead_id} DESQUALIFICADO no Supabase")
+                except Exception as e:
+                    emoji_logger.service_error(f"Erro ao desqualificar lead no Supabase: {e}")
 
             return {
                 "success": True,
                 "message": "Lead desqualificado",
                 "stage": "desqualificado",
-                "lead_id": lead_id,
+                "kommo_lead_id": kommo_lead_id,
+                "supabase_lead_id": supabase_lead_id,
                 "reason": reason
             }
 
@@ -225,49 +240,54 @@ class StageManagementTools:
         Pausa interações da IA
         """
         try:
-            lead_id = lead_info.get("id") or lead_info.get("kommo_lead_id")
+            # Para operações no CRM, usar kommo_lead_id (inteiro), para Supabase usar id (UUID)
+            kommo_lead_id = lead_info.get("kommo_lead_id")
+            supabase_lead_id = lead_info.get("id")
             phone = lead_info.get("phone") or lead_info.get("phone_number")
             
-            if not lead_id:
+            if not kommo_lead_id and not supabase_lead_id:
                 emoji_logger.service_warning("ID do lead não encontrado para handoff")
                 return {"success": False, "message": "Lead ID não encontrado"}
 
             full_notes = f"{notes} - Motivo: {reason}"
             
-            # Atualizar no CRM se disponível
-            if self.crm_service:
+            # Atualizar no CRM se disponível e tiver kommo_lead_id
+            if self.crm_service and kommo_lead_id:
                 result = await self.crm_service.update_lead_stage(
-                    lead_id=str(lead_id),
+                    lead_id=str(kommo_lead_id),
                     stage_name="atendimento_humano",
                     notes=full_notes, 
                     phone_number=phone
                 )
                 
                 if result.get("success"):
-                    emoji_logger.service_info(f"👤 Lead {lead_id} encaminhado para ATENDIMENTO HUMANO no CRM")
+                    emoji_logger.service_info(f"👤 Lead {kommo_lead_id} encaminhado para ATENDIMENTO HUMANO no CRM")
                 else:
-                    emoji_logger.service_warning(f"Falha ao encaminhar lead {lead_id} no CRM: {result.get('message')}")
+                    emoji_logger.service_warning(f"Falha ao encaminhar lead {kommo_lead_id} no CRM: {result.get('message')}")
+            elif self.crm_service and not kommo_lead_id:
+                emoji_logger.service_warning("Lead não tem kommo_lead_id - pulando atualização no CRM")
 
-            # Atualizar no Supabase
-            try:
-                update_data = {
-                    "current_stage": "ATENDIMENTO_HUMANO", 
-                    "qualification_status": "HUMAN_HANDOFF",
-                    "handoff_at": datetime.now().isoformat(),
-                    "handoff_reason": reason,
-                    "stage_updated_at": datetime.now().isoformat(),
-                    "ai_paused": True  # Flag para pausar IA
-                }
-                await supabase_client.update_lead(lead_id, update_data)
-                emoji_logger.service_success(f"Lead {lead_id} encaminhado para ATENDIMENTO HUMANO no Supabase") 
-            except Exception as e:
-                emoji_logger.service_error(f"Erro ao encaminhar lead no Supabase: {e}")
+            # Atualizar no Supabase se tiver supabase_lead_id
+            if supabase_lead_id:
+                try:
+                    update_data = {
+                        "current_stage": "ATENDIMENTO_HUMANO", 
+                        "qualification_status": "HUMAN_HANDOFF",
+                        "handoff_at": datetime.now().isoformat(),
+                        "handoff_reason": reason,
+                        "ai_paused": True  # Flag para pausar IA
+                    }
+                    await supabase_client.update_lead(supabase_lead_id, update_data)
+                    emoji_logger.service_success(f"Lead {supabase_lead_id} encaminhado para ATENDIMENTO HUMANO no Supabase") 
+                except Exception as e:
+                    emoji_logger.service_error(f"Erro ao encaminhar lead no Supabase: {e}")
 
             return {
                 "success": True,
                 "message": "Lead encaminhado para atendimento humano",
                 "stage": "atendimento_humano",
-                "lead_id": lead_id,
+                "kommo_lead_id": kommo_lead_id,
+                "supabase_lead_id": supabase_lead_id,
                 "reason": reason,
                 "ai_paused": True
             }
