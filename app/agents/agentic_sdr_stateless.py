@@ -367,17 +367,24 @@ class AgenticSDRStateless:
                             emoji_logger.system_error("AgenticSDRStateless", f"Falha ao criar no Kommo: {e}")
                     
                     # AGORA SIM: Enviar áudio personalizado
-                    await self._handle_initial_trigger_audio(lead_info, phone, [])
+                    audio_sent = await self._handle_initial_trigger_audio(lead_info, phone, [])
                     
-                    # Resposta personalizada conectando com áudio
-                    response = (
-                        f"Pronto, {extracted_name}! Acabei de te mandar um recado especial "
-                        f"do nosso comandante Hélio dos Anjos. Dá uma escutada aí que é importante! "
-                        f"A gente tá numa missão e cada alvirrubro conta muito."
-                    )
+                    # Só enviar resposta se áudio foi enviado com sucesso
+                    if audio_sent:
+                        # Resposta personalizada conectando com áudio
+                        response = (
+                            f"Pronto, {extracted_name}! Acabei de te mandar um recado especial "
+                            f"do nosso comandante Hélio dos Anjos. Dá uma escutada aí que é importante! "
+                            f"A gente tá numa missão e cada alvirrubro conta muito."
+                        )
+                    else:
+                        # Se áudio não foi enviado, dar mensagem apropriada
+                        response = (
+                            f"Olá, {extracted_name}! Que bom te conhecer melhor. "
+                            f"Agora vou te explicar como nosso programa náutico funciona..."
+                        )
                     
-                    # Mover para qualificação
-                    await self.stage_tools.move_to_em_qualificacao(lead_info)
+                    # Nota: A movimentação para "Em Qualificação" já foi feita no _handle_initial_trigger_audio
                     
                     return response, lead_info
                 else:
@@ -1029,7 +1036,7 @@ class AgenticSDRStateless:
         lead_info: Dict[str, Any],
         phone: str,
         conversation_history: list[dict]
-    ) -> None:
+    ) -> bool:
         """
         ETAPA 0: GATILHO INICIAL - Gerencia o envio do áudio do presidente
         MODIFICADO: Só envia áudio após coleta do nome conforme prompt atualizado
@@ -1040,7 +1047,7 @@ class AgenticSDRStateless:
                 emoji_logger.system_debug(
                     f"⏸️ Áudio bloqueado - aguardando coleta de nome para {phone}"
                 )
-                return
+                return False
             
             # Verificar se é uma conversa nova (critério: poucos mensagens no histórico)
             is_new_conversation = len(conversation_history) <= 2
@@ -1104,10 +1111,13 @@ class AgenticSDRStateless:
                         emoji_logger.system_warning(
                             f"Erro ao atualizar flag de áudio no Supabase: {e}"
                         )
+                    
+                    return True  # Áudio enviado com sucesso
                 else:
                     emoji_logger.service_error(
                         f"❌ Falha ao enviar áudio inicial: {audio_result.get('message')}"
                     )
+                    return False  # Falha ao enviar áudio
             else:
                 # Log do motivo por não enviar
                 reasons = []
@@ -1121,9 +1131,11 @@ class AgenticSDRStateless:
                 emoji_logger.system_debug(
                     f"🎵 Áudio inicial não enviado para {phone} - Motivos: {', '.join(reasons)}"
                 )
+                return False  # Áudio não foi enviado
                 
         except Exception as e:
             emoji_logger.system_error(
                 "AgenticSDRStateless",
                 f"Erro na Etapa 0 (áudio inicial): {e}"
             )
+            return False  # Erro na execução

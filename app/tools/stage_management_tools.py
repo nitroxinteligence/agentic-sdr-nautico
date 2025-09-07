@@ -64,7 +64,7 @@ class StageManagementTools:
                 try:
                     update_data = {
                         "current_stage": "EM_QUALIFICACAO", 
-                        "qualification_status": "IN_PROGRESS"
+                        "qualification_status": "PENDING"
                     }
                     await supabase_client.update_lead(supabase_lead_id, update_data)
                     emoji_logger.service_success(f"Lead {supabase_lead_id} atualizado no Supabase - Em Qualificação")
@@ -204,7 +204,7 @@ class StageManagementTools:
                 try:
                     update_data = {
                         "current_stage": "DESQUALIFICADO",
-                        "qualification_status": "DISQUALIFIED",
+                        "qualification_status": "NOT_QUALIFIED",
                         "disqualified_at": datetime.now().isoformat(),
                         "disqualification_reason": reason
                     }
@@ -272,7 +272,7 @@ class StageManagementTools:
                 try:
                     update_data = {
                         "current_stage": "ATENDIMENTO_HUMANO", 
-                        "qualification_status": "HUMAN_HANDOFF",
+                        "qualification_status": "PENDING",
                         "handoff_at": datetime.now().isoformat(),
                         "handoff_reason": reason,
                         "ai_paused": True  # Flag para pausar IA
