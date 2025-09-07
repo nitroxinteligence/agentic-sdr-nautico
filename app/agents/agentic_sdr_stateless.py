@@ -1057,9 +1057,34 @@ class AgenticSDRStateless:
             
             # Verificar se lead está em estágio inicial
             current_stage = lead_info.get("current_stage", "").upper()
-            is_initial_stage = current_stage in ["NOVO_LEAD", "INITIAL_CONTACT", ""]
+            is_initial_stage = current_stage in ["NOVO_LEAD", "INITIAL_CONTACT", "", "EM_QUALIFICACAO"]
             
-            if is_new_conversation and not already_sent_audio and is_initial_stage:
+            # DEBUG: Log detalhado das condições
+            emoji_logger.system_debug(
+                f"🔍 DEBUG ÁUDIO: {phone} - "
+                f"is_new_conversation={is_new_conversation} (len={len(conversation_history)}), "
+                f"already_sent_audio={already_sent_audio}, "
+                f"current_stage='{current_stage}', is_initial_stage={is_initial_stage}"
+            )
+            
+            # TEMPORÁRIO: Para novo lead com nome coletado, sempre tentar enviar áudio
+            is_brand_new_lead = (
+                lead_info.get("name") and 
+                lead_info.get("name") != "Lead Náutico" and
+                not already_sent_audio
+            )
+            
+            should_send_audio = (
+                is_brand_new_lead or 
+                (is_new_conversation and not already_sent_audio and is_initial_stage)
+            )
+            
+            emoji_logger.system_debug(
+                f"🎵 DECISÃO ÁUDIO: should_send_audio={should_send_audio} "
+                f"(brand_new={is_brand_new_lead}, new={is_new_conversation}, not_sent={not already_sent_audio}, initial={is_initial_stage})"
+            )
+            
+            if should_send_audio:
                 emoji_logger.system_info(
                     f"🎵 ETAPA 0 ATIVADA - Enviando áudio inicial do presidente para {phone}"
                 )
