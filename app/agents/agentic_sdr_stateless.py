@@ -1129,8 +1129,7 @@ class AgenticSDRStateless:
                         lead_id = lead_info.get("id")
                         if lead_id:
                             await supabase_client.update_lead(lead_id, {
-                                "initial_audio_sent": True,
-                                "audio_sent_at": datetime.now().isoformat()
+                                "initial_audio_sent": True
                             })
                     except Exception as e:
                         emoji_logger.system_warning(
