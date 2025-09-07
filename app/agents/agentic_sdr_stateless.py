@@ -265,7 +265,8 @@ class AgenticSDRStateless:
         except Exception as e:
             import traceback
             emoji_logger.system_error(
-                f"AgenticSDRStateless - Erro na inicialização: {e}"
+                "AgenticSDRStateless",
+                f"Erro na inicialização: {e}"
             )
             raise
 
@@ -326,7 +327,7 @@ class AgenticSDRStateless:
                     lead_info.update(created_lead)
                     emoji_logger.system_success(f"Lead temporário criado: {lead_info.get('id')}")
                 except Exception as e:
-                    emoji_logger.system_error(f"Erro ao criar lead temporário: {e}")
+                    emoji_logger.system_error("AgenticSDRStateless", f"Erro ao criar lead temporário: {e}")
                 
                 return response, lead_info
             
@@ -363,7 +364,7 @@ class AgenticSDRStateless:
                             else:
                                 emoji_logger.system_warning(f"Erro ao criar '{extracted_name}' no Kommo")
                         except Exception as e:
-                            emoji_logger.system_error(f"Falha ao criar no Kommo: {e}")
+                            emoji_logger.system_error("AgenticSDRStateless", f"Falha ao criar no Kommo: {e}")
                     
                     # AGORA SIM: Enviar áudio personalizado
                     await self._handle_initial_trigger_audio(lead_info, phone, [])
@@ -457,7 +458,8 @@ class AgenticSDRStateless:
             error_trace = traceback.format_exc()
             phone = execution_context.get("phone", "UNKNOWN")
             emoji_logger.system_error(
-                f"AgenticSDRStateless - ❌ ERRO CRÍTICO NO AGENTE: {e}",
+                "AgenticSDRStateless",
+                f"❌ ERRO CRÍTICO NO AGENTE: {e}",
                 traceback=error_trace
             )
             emoji_logger.agentic_error(
@@ -709,7 +711,8 @@ class AgenticSDRStateless:
             tool_matches = re.findall(tool_pattern, response)
         except re.error as e:
             emoji_logger.system_error(
-                f"Tool parsing error - Erro de regex ao parsear tools: {e}. Resposta: {response[:200]}..."
+                "Tool parsing error",
+                f"Erro de regex ao parsear tools: {e}. Resposta: {response[:200]}..."
             )
             return {} # Retorna vazio se a regex falhar
 
@@ -742,7 +745,8 @@ class AgenticSDRStateless:
             except Exception as e:
                 tool_results[service_method] = {"error": str(e)}
                 emoji_logger.system_error(
-                    f"Tool execution error - ❌ Erro no tool {service_method}: {e}"
+                    "Tool execution error",
+                    f"❌ Erro no tool {service_method}: {e}"
                 )
 
         return tool_results
@@ -1120,5 +1124,6 @@ class AgenticSDRStateless:
                 
         except Exception as e:
             emoji_logger.system_error(
+                "AgenticSDRStateless",
                 f"Erro na Etapa 0 (áudio inicial): {e}"
             )

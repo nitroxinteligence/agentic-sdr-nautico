@@ -42,7 +42,7 @@ async def start_background_workers():
         # Conectar ao Redis primeiro
         await redis_client.connect()
         if not await redis_client.ping():
-            emoji_logger.system_error("Redis não conectado - workers não podem iniciar")
+            emoji_logger.system_error("Main", "Redis não conectado - workers não podem iniciar")
             return False
             
         # Inicializar Scheduler (enfileira tarefas)
@@ -59,7 +59,7 @@ async def start_background_workers():
         return True
         
     except Exception as e:
-        emoji_logger.system_error(f"Erro ao iniciar workers em background: {e}")
+        emoji_logger.system_error("Main", f"Erro ao iniciar workers em background: {e}")
         return False
 
 async def stop_background_workers():

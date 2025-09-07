@@ -280,7 +280,7 @@ class MultimodalProcessor:
                     "message": "Não foi possível extrair texto do documento"
                 }
         except Exception as e:
-            emoji_logger.system_error(f"Erro ao processar documento: {e}")
+            emoji_logger.system_error("Multimodal Processor", f"Erro ao processar documento: {e}")
             return {
                 "success": False,
                 "message": f"Erro ao processar documento: {str(e)}"
