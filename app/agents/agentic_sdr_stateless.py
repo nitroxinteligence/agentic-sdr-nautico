@@ -377,7 +377,7 @@ class AgenticSDRStateless:
                     )
                     
                     # Mover para qualificação
-                    await self.stage_tools.qualify_lead(lead_info)
+                    await self.stage_tools.move_to_em_qualificacao(lead_info)
                     
                     return response, lead_info
                 else:
