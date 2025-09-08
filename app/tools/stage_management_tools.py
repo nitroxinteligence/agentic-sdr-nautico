@@ -130,18 +130,30 @@ class StageManagementTools:
             # Atualizar no Supabase se tiver supabase_lead_id
             if supabase_lead_id:
                 try:
-                    update_data = {
-                        "current_stage": "QUALIFICADO",
-                        "qualification_status": "QUALIFIED", 
-                        "qualified_at": datetime.now().isoformat()
+                    # 1. Atualizar tabela leads
+                    lead_update_data = {
+                        "current_stage": "QUALIFICADO"
                     }
                     
                     if payment_value:
-                        update_data["bill_value"] = payment_value
-                        update_data["payment_confirmed"] = payment_valid
+                        lead_update_data["bill_value"] = payment_value
+                        lead_update_data["payment_confirmed"] = payment_valid
                         
-                    await supabase_client.update_lead(supabase_lead_id, update_data)
-                    emoji_logger.service_success(f"Lead {supabase_lead_id} QUALIFICADO no Supabase")
+                    await supabase_client.update_lead(supabase_lead_id, lead_update_data)
+                    
+                    # 2. Criar/atualizar qualificação na tabela leads_qualifications
+                    qualification_data = {
+                        "lead_id": supabase_lead_id,
+                        "qualification_status": "QUALIFIED", 
+                        "qualified_at": datetime.now().isoformat(),
+                        "current_stage": "QUALIFICADO"
+                    }
+                    
+                    if payment_value:
+                        qualification_data["notes"] = f"Pagamento confirmado: R$ {payment_value}"
+                        
+                    await supabase_client.create_lead_qualification(qualification_data)
+                    emoji_logger.service_success(f"Lead {supabase_lead_id} QUALIFICADO no Supabase (leads + qualifications)")
                 except Exception as e:
                     emoji_logger.service_error(f"Erro ao qualificar lead no Supabase: {e}")
 
@@ -202,14 +214,22 @@ class StageManagementTools:
             # Atualizar no Supabase se tiver supabase_lead_id
             if supabase_lead_id:
                 try:
-                    update_data = {
-                        "current_stage": "DESQUALIFICADO",
-                        "qualification_status": "NOT_QUALIFIED",
-                        "disqualified_at": datetime.now().isoformat(),
-                        "disqualification_reason": reason
+                    # 1. Atualizar tabela leads
+                    lead_update_data = {
+                        "current_stage": "DESQUALIFICADO"
                     }
-                    await supabase_client.update_lead(supabase_lead_id, update_data) 
-                    emoji_logger.service_success(f"Lead {supabase_lead_id} DESQUALIFICADO no Supabase")
+                    await supabase_client.update_lead(supabase_lead_id, lead_update_data)
+                    
+                    # 2. Criar/atualizar qualificação na tabela leads_qualifications
+                    qualification_data = {
+                        "lead_id": supabase_lead_id,
+                        "qualification_status": "NOT_QUALIFIED",
+                        "current_stage": "DESQUALIFICADO",
+                        "notes": f"Desqualificado em {datetime.now().isoformat()}: {reason}"
+                    }
+                    
+                    await supabase_client.create_lead_qualification(qualification_data)
+                    emoji_logger.service_success(f"Lead {supabase_lead_id} DESQUALIFICADO no Supabase (leads + qualifications)")
                 except Exception as e:
                     emoji_logger.service_error(f"Erro ao desqualificar lead no Supabase: {e}")
 

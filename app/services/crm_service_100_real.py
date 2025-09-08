@@ -561,7 +561,19 @@ class CRMServiceReal:
             if not stage_id:
                 stage_id = self.stage_map.get(stage_name.strip()) or self.stage_map.get(stage_name.strip().upper())
                 if not stage_id:
-                    raise ValueError(f"Estágio '{stage_name}' não encontrado no mapa: {list(self.stage_map.keys())}")
+                    # Fallback para estágios configurados estaticamente
+                    fallback_map = {
+                        "novo_lead": settings.kommo_novo_lead_stage_id,
+                        "em_qualificacao": settings.kommo_em_qualificacao_stage_id,
+                        "qualificado": settings.kommo_qualificado_stage_id,
+                        "desqualificado": settings.kommo_desqualificado_stage_id,
+                        "atendimento_humano": settings.kommo_human_handoff_stage_id
+                    }
+                    stage_id = fallback_map.get(normalized_stage)
+                    if stage_id:
+                        emoji_logger.service_info(f"🔄 Usando stage ID configurado para '{stage_name}': {stage_id}")
+                    else:
+                        raise ValueError(f"Estágio '{stage_name}' não encontrado no mapa dinâmico nem nos configurados: {list(self.stage_map.keys())}")
             
             # PASSO 2 DA CORREÇÃO: Ativar pausa no Redis se for estágio de handoff
             human_handoff_stage_id = settings.kommo_human_handoff_stage_id
