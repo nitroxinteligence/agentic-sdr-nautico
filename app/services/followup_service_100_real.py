@@ -214,7 +214,7 @@ class FollowUpServiceReal:
         """Cancela um follow-up específico"""
         try:
             await self.db.update_follow_up_status(
-                followup_id, "cancelled", reason
+                followup_id, "cancelled", None, reason
             )
             emoji_logger.followup_event(
                 f"🚫 Follow-up {followup_id} cancelado: {reason}"

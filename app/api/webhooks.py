@@ -1010,6 +1010,81 @@ async def process_message_with_agent(
         f"Mensagem: '{message_content[:100]}...', ID: {message_id}"
     )
     
+    # COMANDO #CLEAR - Detecção e execução direta
+    if message_content and message_content.strip().lower() in ['#clear', '#limpar', '#reset', '#restart']:
+        emoji_logger.system_warning(f"🧹 COMANDO #CLEAR detectado para {phone}")
+        try:
+            # Buscar e limpar conversas/mensagens
+            lead_data = await supabase_client.get_lead_by_phone(phone)
+            conversation_data = await supabase_client.get_conversation_by_phone(phone)
+            
+            deleted_messages = 0
+            
+            if conversation_data:
+                conversation_id = conversation_data["id"]
+                
+                # Deletar mensagens
+                delete_result = supabase_client.client.table('messages').delete().eq(
+                    'conversation_id', conversation_id
+                ).execute()
+                deleted_messages = len(delete_result.data) if delete_result.data else 0
+                
+                # Reset conversa
+                await supabase_client.update_conversation(conversation_id, {
+                    'total_messages': 0,
+                    'emotional_state': 'NEUTRA'
+                })
+                
+            # Reset lead se existir
+            if lead_data:
+                await supabase_client.update_lead(lead_data["id"], {
+                    'current_stage': 'NOVO_LEAD',
+                    'initial_audio_sent': False,
+                    'membership_interest': None,
+                    'payment_value': None,
+                    'payer_name': None,
+                    'is_valid_nautico_payment': None
+                })
+            
+            # Cancelar follow-ups pendentes
+            try:
+                from app.services.followup_service_100_real import FollowUpServiceReal
+                followup_service = FollowUpServiceReal()
+                await followup_service.initialize()
+                pending_followups = await followup_service.get_pending_followups()
+                
+                cancelled_count = 0
+                for followup in pending_followups:
+                    if followup.get("phone_number") == phone.replace("+", "").replace("-", "").replace(" ", ""):
+                        try:
+                            await followup_service.cancel_followup(
+                                followup.get("id"), "Comando #clear executado"
+                            )
+                            cancelled_count += 1
+                        except Exception as e:
+                            emoji_logger.system_warning(f"Erro ao cancelar follow-up {followup.get('id')}: {e}")
+                            
+                emoji_logger.system_info(f"🚫 {cancelled_count} follow-ups cancelados para {phone}")
+            except Exception as e:
+                emoji_logger.system_warning(f"Erro ao cancelar follow-ups: {e}")
+            
+            # Resposta de sucesso
+            success_message = (
+                f"Pronto! Histórico limpo com sucesso. "
+                f"Foram removidas {deleted_messages} mensagens. "
+                f"Vamos começar do zero como um novo lead!"
+            )
+            
+            await evolution_client.send_text_message(phone, success_message)
+            emoji_logger.system_success(f"✅ CLEAR executado com sucesso para {phone}: {deleted_messages} mensagens removidas")
+            
+            return
+            
+        except Exception as e:
+            emoji_logger.system_error("ClearCommand", f"Erro ao executar #clear para {phone}: {e}")
+            await evolution_client.send_text_message(phone, "Erro ao limpar histórico. Tente novamente.")
+            return
+    
     if not original_message or not isinstance(original_message, dict):
         emoji_logger.system_error(
             "process_message_with_agent",

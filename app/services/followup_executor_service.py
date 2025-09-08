@@ -167,7 +167,7 @@ class FollowUpSchedulerService:
                 
                 for followup in conflicting_followups:
                     await self.db.update_follow_up_status(
-                        followup['id'], 'cancelled', 'Cancelado - reset sistema follow-up'
+                        followup['id'], 'cancelled', None, 'Cancelado - reset sistema follow-up'
                     )
                     logger.info(f"🗑️ Follow-up cancelado: {followup['id']} (tipo: {followup.get('follow_up_type', 'N/A')})")
                     
