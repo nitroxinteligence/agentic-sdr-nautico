@@ -1046,34 +1046,48 @@ async def process_message_with_agent(
                     'is_valid_nautico_payment': None
                 })
             
-            # Cancelar follow-ups pendentes
+            # Cancelar follow-ups pendentes - Busca por lead_id
+            cancelled_count = 0
             try:
-                from app.services.followup_service_100_real import FollowUpServiceReal
-                followup_service = FollowUpServiceReal()
-                await followup_service.initialize()
-                pending_followups = await followup_service.get_pending_followups()
                 
-                cancelled_count = 0
-                for followup in pending_followups:
-                    if followup.get("phone_number") == phone.replace("+", "").replace("-", "").replace(" ", ""):
+                if lead_data:
+                    lead_id = lead_data["id"]
+                    emoji_logger.system_info(f"🔍 Buscando follow-ups para lead_id: {lead_id}")
+                    
+                    # Buscar follow-ups diretamente por lead_id
+                    pending_result = supabase_client.client.table('follow_ups').select("*").eq(
+                        'lead_id', lead_id
+                    ).in_('status', ['pending', 'queued']).execute()
+                    
+                    pending_followups = pending_result.data or []
+                    emoji_logger.system_info(f"📋 Encontrados {len(pending_followups)} follow-ups para cancelar")
+                    
+                    for followup in pending_followups:
                         try:
-                            await followup_service.cancel_followup(
-                                followup.get("id"), "Comando #clear executado"
+                            await supabase_client.update_follow_up_status(
+                                followup["id"], "cancelled", None, "Comando #clear executado"
                             )
                             cancelled_count += 1
+                            emoji_logger.system_debug(f"✅ Follow-up {followup['id']} cancelado")
                         except Exception as e:
                             emoji_logger.system_warning(f"Erro ao cancelar follow-up {followup.get('id')}: {e}")
+                else:
+                    emoji_logger.system_warning("Nenhum lead encontrado - não é possível cancelar follow-ups")
                             
-                emoji_logger.system_info(f"🚫 {cancelled_count} follow-ups cancelados para {phone}")
+                emoji_logger.system_success(f"🚫 {cancelled_count} follow-ups cancelados para {phone}")
             except Exception as e:
-                emoji_logger.system_warning(f"Erro ao cancelar follow-ups: {e}")
+                emoji_logger.system_error("ClearCommand", f"Erro ao cancelar follow-ups: {e}")
             
             # Resposta de sucesso
             success_message = (
                 f"Pronto! Histórico limpo com sucesso. "
-                f"Foram removidas {deleted_messages} mensagens. "
-                f"Vamos começar do zero como um novo lead!"
+                f"Foram removidas {deleted_messages} mensagens"
             )
+            
+            if cancelled_count > 0:
+                success_message += f" e cancelados {cancelled_count} follow-ups"
+                
+            success_message += ". Vamos começar do zero como um novo lead!"
             
             await evolution_client.send_text_message(phone, success_message)
             emoji_logger.system_success(f"✅ CLEAR executado com sucesso para {phone}: {deleted_messages} mensagens removidas")
