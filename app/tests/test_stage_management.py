@@ -184,11 +184,12 @@ class TestFollowUpNauticoTools:
         
         # Verificar resultado
         assert result["success"] is True
-        assert result["total"] == 3
-        assert len(result["scheduled_followups"]) == 3
+        assert result["total"] == 4
+        assert len(result["scheduled_followups"]) == 4
         
-        # Verificar que foram agendados follow-ups para 4h, 24h e 48h
+        # Verificar que foram agendados follow-ups para 30min, 4h, 24h e 48h
         delays = [f["delay"] for f in result["scheduled_followups"]]
+        assert "30min" in delays
         assert "4h" in delays
         assert "24h" in delays
         assert "48h" in delays
@@ -199,7 +200,7 @@ class TestFollowUpNauticoTools:
         assert followup_48h["action"] == "desqualificar_se_sem_resposta"
         
         # Verificar que o serviço foi chamado 3 vezes
-        assert mock_followup_service.schedule_followup.call_count == 3
+        assert mock_followup_service.schedule_followup.call_count == 4
 
     @pytest.mark.asyncio
     async def test_process_final_followup_no_response(self, followup_tools, sample_lead_info):

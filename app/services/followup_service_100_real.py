@@ -240,28 +240,52 @@ class FollowUpServiceReal:
         pass
 
     def _adjust_to_business_hours(self, scheduled_time: datetime) -> datetime:
-        """Ajusta horário agendado para horário comercial se necessário"""
+        """Ajusta horário agendado para horário comercial mantendo intervalos relativos"""
         try:
             # Converter para timezone de São Paulo
             br_timezone = pytz.timezone(settings.business_timezone)
             scheduled_br = scheduled_time.astimezone(br_timezone)
+            original_time = scheduled_br.time()
             
             # Obter configurações de horário comercial
             business_start = datetime.strptime(settings.business_hours_start, "%H:%M").time()
             business_end = datetime.strptime(settings.business_hours_end, "%H:%M").time()
             
-            # Verificar se é fim de semana
+            # Se está dentro do horário comercial e não é fim de semana, manter horário original
+            if (business_start <= scheduled_br.time() <= business_end and 
+                (scheduled_br.weekday() < 5 or settings.weekend_support)):
+                return scheduled_time.astimezone(pytz.utc)
+            
+            # Calcular minutos desde início do horário comercial para manter proporção
+            original_minutes_from_start = (
+                original_time.hour * 60 + original_time.minute - 
+                (business_start.hour * 60 + business_start.minute)
+            )
+            
+            # Se for fim de semana sem suporte
             if scheduled_br.weekday() >= 5 and not settings.weekend_support:
-                # Mover para segunda-feira
+                # Mover para próxima segunda-feira, mantendo o horário proporcional
                 days_until_monday = 7 - scheduled_br.weekday()
-                scheduled_br = scheduled_br.replace(
-                    hour=business_start.hour, 
-                    minute=business_start.minute,
-                    second=0,
-                    microsecond=0
-                ) + timedelta(days=days_until_monday)
+                next_monday = scheduled_br + timedelta(days=days_until_monday)
                 
-            # Verificar se está fora do horário comercial
+                # Manter horário original se estiver dentro do comercial
+                if business_start <= original_time <= business_end:
+                    scheduled_br = next_monday.replace(
+                        hour=original_time.hour,
+                        minute=original_time.minute,
+                        second=0,
+                        microsecond=0
+                    )
+                else:
+                    # Ajustar para início do horário comercial
+                    scheduled_br = next_monday.replace(
+                        hour=business_start.hour,
+                        minute=business_start.minute,
+                        second=0,
+                        microsecond=0
+                    )
+                
+            # Se está antes do horário comercial
             elif scheduled_br.time() < business_start:
                 # Agendar para início do horário comercial do mesmo dia
                 scheduled_br = scheduled_br.replace(
@@ -271,12 +295,10 @@ class FollowUpServiceReal:
                     microsecond=0
                 )
             elif scheduled_br.time() > business_end:
-                # Agendar para início do próximo dia útil
+                # Agendar para próximo dia útil
                 next_day = scheduled_br + timedelta(days=1)
-                if next_day.weekday() >= 5 and not settings.weekend_support:
-                    # Se próximo dia for fim de semana, ir para segunda
-                    days_until_monday = 7 - next_day.weekday()
-                    next_day += timedelta(days=days_until_monday)
+                while next_day.weekday() >= 5 and not settings.weekend_support:
+                    next_day += timedelta(days=1)
                 
                 scheduled_br = next_day.replace(
                     hour=business_start.hour,
