@@ -67,7 +67,7 @@ class AgenticSDRStateless:
 
         # Inicializar ferramentas de estágio e follow-up
         self.stage_tools = StageManagementTools(self.crm_service)
-        self.followup_nautico_tools = FollowUpNauticoTools(self.followup_service)
+        self.followup_nautico_tools = FollowUpNauticoTools(self.followup_service, self.crm_service)
         
         # Inicializar serviço de áudio
         self.audio_service = AudioService()
@@ -549,13 +549,10 @@ class AgenticSDRStateless:
                     if is_valid_payment and payment_value:
                         emoji_logger.system_info("🎯 INICIANDO qualificação automática do lead")
                         try:
-                            from app.tools.stage_management_tools import StageManagementTools
-                            stage_tools = StageManagementTools()
-                            
                             emoji_logger.system_info("🎯 Qualificando automaticamente lead com comprovante válido")
                             
-                            # Mover para "Qualificado" 
-                            qualification_result = await stage_tools.move_to_qualificado(
+                            # Mover para "Qualificado" usando a instância já inicializada com CRM service
+                            qualification_result = await self.stage_tools.move_to_qualificado(
                                 lead_info=lead_info,
                                 payment_value=str(payment_value),
                                 payment_valid=True,
@@ -671,11 +668,8 @@ class AgenticSDRStateless:
             if is_payment_confirmation and has_value_mention:
                 emoji_logger.system_info("🎯 DETECTADA CONFIRMAÇÃO DE PAGAMENTO - Qualificando lead automaticamente")
                 
-                # Qualificar lead
-                from app.tools.stage_management_tools import StageManagementTools
-                stage_tools = StageManagementTools()
-                
-                result = await stage_tools.move_to_qualificado(
+                # Qualificar lead usando a instância já inicializada com CRM service
+                result = await self.stage_tools.move_to_qualificado(
                     lead_info=lead_info,
                     payment_value=None,  # Valor será extraído do lead_info se disponível
                     payment_valid=True,

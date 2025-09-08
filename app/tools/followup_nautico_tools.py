@@ -17,9 +17,9 @@ from app.tools.stage_management_tools import StageManagementTools
 class FollowUpNauticoTools:
     """Ferramentas de follow-up específicas do Náutico"""
 
-    def __init__(self, followup_service=None):
+    def __init__(self, followup_service=None, crm_service=None):
         self.followup_service = followup_service
-        self.stage_tools = StageManagementTools()
+        self.stage_tools = StageManagementTools(crm_service)
         
         # Templates de mensagem conforme novo prompt atualizado
         self.follow_up_templates = {
