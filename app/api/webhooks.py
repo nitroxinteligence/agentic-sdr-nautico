@@ -22,6 +22,7 @@ from app.services.message_buffer import MessageBuffer, get_message_buffer
 from app.services.message_splitter import MessageSplitter, get_message_splitter
 from app.utils.agno_media_detection import AGNOMediaDetector
 from app.exceptions import HandoffActiveException
+from app.services.clear_command_service import clear_command_service
 
 router = APIRouter(prefix="/webhook", tags=["webhooks"])
 
@@ -1009,6 +1010,28 @@ async def process_message_with_agent(
         f"🚀 INICIANDO PROCESSAMENTO PRINCIPAL - Telefone: {phone}, "
         f"Mensagem: '{message_content[:100]}...', ID: {message_id}"
     )
+    
+    # ETAPA 0: VERIFICAR COMANDO #CLEAR ANTES DE QUALQUER PROCESSAMENTO
+    clear_executed, clear_result = await clear_command_service.execute_clear_command(phone, message_content)
+    
+    if clear_executed:
+        emoji_logger.system_info(f"🧹 CLEAR COMMAND INTERCEPTED para {phone}")
+        
+        # Enviar resposta diretamente via Evolution API
+        if clear_result.get("success"):
+            success_message = clear_result.get("message", "Histórico limpo com sucesso!")
+            await evolution_client.send_text_message(phone, success_message)
+            emoji_logger.system_success(f"✅ Resposta do #clear enviada para {phone}")
+        else:
+            error_message = clear_result.get("message", "Erro ao limpar histórico.")
+            await evolution_client.send_text_message(phone, error_message)
+            emoji_logger.system_error(f"❌ Erro do #clear enviado para {phone}")
+        
+        # Log de auditoria
+        await clear_command_service.log_clear_execution(phone, clear_result, message_content)
+        
+        # Finalizar processamento - não continuar para o agente
+        return
     
     if not original_message or not isinstance(original_message, dict):
         emoji_logger.system_error(

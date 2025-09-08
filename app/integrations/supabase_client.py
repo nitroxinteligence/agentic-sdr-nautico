@@ -649,5 +649,83 @@ class SupabaseClient:
             )
             raise
 
+    # ============= CLEAR OPERATIONS =============
+
+    @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    async def clear_conversation_by_phone(self, phone_number: str) -> Dict[str, Any]:
+        """
+        Limpa todo o histórico de conversa de um usuário específico
+        Operação segura que remove mensagens e reset contexto
+        """
+        try:
+            emoji_logger.system_warning(f"🧹 CLEAR REQUEST: Iniciando limpeza para {phone_number}")
+            
+            # 1. Buscar conversa usando a função existente
+            conversation_data = await self.get_conversation_by_phone(phone_number)
+            
+            if not conversation_data:
+                emoji_logger.system_info(f"📭 Nenhuma conversa encontrada para {phone_number}")
+                return {
+                    "success": True,
+                    "message": "Nenhuma conversa encontrada para limpar",
+                    "deleted_messages": 0
+                }
+            
+            conversation_id = conversation_data["id"]
+            total_messages = conversation_data.get("total_messages", 0)
+            
+            emoji_logger.system_info(f"🗨️ Conversa encontrada: {conversation_id} ({total_messages} mensagens)")
+            
+            # 2. Deletar todas as mensagens da conversa
+            delete_result = self.client.table('messages').delete().eq(
+                'conversation_id', conversation_id
+            ).execute()
+            
+            deleted_count = len(delete_result.data) if delete_result.data else 0
+            emoji_logger.system_success(f"🗑️ {deleted_count} mensagens deletadas")
+            
+            # 3. Reset contador de mensagens na conversa
+            await self.update_conversation(conversation_id, {
+                'total_messages': 0,
+                'emotional_state': 'NEUTRA',
+                'last_interaction': datetime.now().isoformat()
+            })
+            
+            # 4. Reset lead para estado inicial se existir
+            lead_result = self.client.table('leads').select(
+                "id, current_stage"
+            ).eq('phone_number', phone_number).execute()
+            
+            if lead_result.data:
+                lead_id = lead_result.data[0]["id"]
+                await self.update_lead(lead_id, {
+                    'current_stage': 'NOVO_LEAD',
+                    'initial_audio_sent': False,
+                    'membership_interest': None,
+                    'payment_value': None,
+                    'payer_name': None,
+                    'is_valid_nautico_payment': None
+                })
+                emoji_logger.system_info(f"🔄 Lead {lead_id} resetado para estado inicial")
+            
+            emoji_logger.system_success(
+                f"✅ CLEAR COMPLETED: {phone_number} - {deleted_count} mensagens removidas"
+            )
+            
+            return {
+                "success": True,
+                "message": f"Histórico limpo com sucesso! {deleted_count} mensagens removidas.",
+                "deleted_messages": deleted_count,
+                "conversation_id": conversation_id
+            }
+            
+        except Exception as e:
+            emoji_logger.system_error("ClearConversation", f"Erro ao limpar conversa: {str(e)}")
+            return {
+                "success": False,
+                "message": f"Erro ao limpar histórico: {str(e)}",
+                "deleted_messages": 0
+            }
+
 
 supabase_client = SupabaseClient()
