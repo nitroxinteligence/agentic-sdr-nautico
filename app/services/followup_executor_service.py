@@ -68,7 +68,7 @@ class FollowUpSchedulerService:
                     continue  # Pular, já verificamos recentemente
                     
                 # Marcar como verificado por 5 minutos
-                await self.redis.set(recently_checked_key, "1", expire_time=300)
+                await self.redis.set(recently_checked_key, "1", ttl=300)
                 
                 if lead_id:
                     one_week_ago = now - timedelta(days=7)
@@ -83,7 +83,7 @@ class FollowUpSchedulerService:
                             emoji_logger.system_warning(
                                 f"🚫 Limite de follow-ups atingido para o lead {lead_id}. Tipo: {followup_type}"
                             )
-                            await self.redis.set(cancelled_key, "1", expire_time=86400)  # 24h
+                            await self.redis.set(cancelled_key, "1", ttl=86400)  # 24h
                         
                         await self.db.update_follow_up_status(
                             followup['id'], 'cancelled'
