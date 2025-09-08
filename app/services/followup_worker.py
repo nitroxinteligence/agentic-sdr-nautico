@@ -154,6 +154,7 @@ class FollowUpWorker:
         lead_name = lead_info.get("name", "o lead")
         bill_value = lead_info.get("bill_value", "não informado")
         chosen_flow = lead_info.get("chosen_flow", "não definido")
+        membership_interest = lead_info.get("membership_interest", 0)
 
         # Prompt para o LLM
         prompt_to_llm = f"""
