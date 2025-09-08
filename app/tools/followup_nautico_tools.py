@@ -21,11 +21,12 @@ class FollowUpNauticoTools:
         self.followup_service = followup_service
         self.stage_tools = StageManagementTools()
         
-        # Templates de mensagem do prompt atualizado
+        # Templates de mensagem conforme novo prompt atualizado
         self.follow_up_templates = {
-            "4h": "Opa, {name}! Passando só pra saber se ficou alguma dúvida sobre o que a gente conversou. Tô por aqui visse?",
-            "24h": "E aí, tudo certo? Deu pra pensar na nossa conversa sobre fortalecer o Timão? Qualquer coisa é só dar um alô.",
-            "48h": "Fala, {name}. Essa é minha última tentativa. Se ainda quiser fazer parte do nosso time de sócios, me chama aqui. Grande abraço alvirrubro!"
+            "30min": "Ei, {name}, só passando pra ver se ficou dúvida sobre apoiar o Náutico nessa reta final. Tô aqui!",
+            "4h": "Opa, {name}! Alguma dúvida sobre nossa conversa? Tô aqui pra ajudar a fortalecer o Timba!",
+            "24h": "E aí, tudo certo? Pensou sobre apoiar o Náutico rumo à Série B? Qualquer coisa, é só chamar.",
+            "48h": "Fala, {name}. Última tentativa: quer se juntar ao Sócio Mais Fiel e apoiar o Timba? Grande abraço alvirrubro!"
         }
 
     async def schedule_nautico_followups(
@@ -34,7 +35,8 @@ class FollowUpNauticoTools:
         phone_number: str
     ) -> Dict[str, Any]:
         """
-        Agenda os 3 follow-ups automáticos do Náutico conforme protocolo
+        Agenda os 4 follow-ups automáticos do Náutico conforme novo protocolo:
+        30min -> 4h -> 24h -> 48h
         """
         try:
             if not self.followup_service:
@@ -47,12 +49,27 @@ class FollowUpNauticoTools:
 
             scheduled_followups = []
 
-            # Follow-up 1: 4 horas
+            # Follow-up 1: 30 minutos (NOVO)
+            message_30min = self.follow_up_templates["30min"].format(name=lead_name)
+            result_30min = await self.followup_service.schedule_followup(
+                phone_number=phone_number,
+                message=message_30min,
+                delay_hours=settings.followup_delay_30min / 60,  # Converter minutos para horas (0.5h)
+                lead_info=lead_info
+            )
+            if result_30min.get("success"):
+                scheduled_followups.append({
+                    "delay": "30min", 
+                    "followup_id": result_30min.get("followup_id"),
+                    "message": message_30min
+                })
+
+            # Follow-up 2: 4 horas
             message_4h = self.follow_up_templates["4h"].format(name=lead_name)
             result_4h = await self.followup_service.schedule_followup(
                 phone_number=phone_number,
                 message=message_4h,
-                delay_hours=4,
+                delay_hours=settings.followup_delay_4hours / 60,  # Converter minutos para horas (4h)
                 lead_info=lead_info
             )
             if result_4h.get("success"):
@@ -62,12 +79,12 @@ class FollowUpNauticoTools:
                     "message": message_4h
                 })
 
-            # Follow-up 2: 24 horas  
-            message_24h = self.follow_up_templates["24h"]
+            # Follow-up 3: 24 horas  
+            message_24h = self.follow_up_templates["24h"].format(name=lead_name)
             result_24h = await self.followup_service.schedule_followup(
                 phone_number=phone_number,
                 message=message_24h,
-                delay_hours=24,
+                delay_hours=settings.followup_delay_24hours / 60,  # Converter minutos para horas (24h)
                 lead_info=lead_info
             )
             if result_24h.get("success"):
@@ -77,12 +94,12 @@ class FollowUpNauticoTools:
                     "message": message_24h
                 })
 
-            # Follow-up 3: 48 horas (último + desqualificar)
+            # Follow-up 4: 48 horas (último + desqualificar)
             message_48h = self.follow_up_templates["48h"].format(name=lead_name)
             result_48h = await self.followup_service.schedule_followup(
                 phone_number=phone_number,
                 message=message_48h,
-                delay_hours=48,
+                delay_hours=settings.followup_delay_48hours / 60,  # Converter minutos para horas (48h)
                 lead_info=lead_info
             )
             if result_48h.get("success"):

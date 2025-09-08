@@ -148,7 +148,7 @@ class ResponseFormatter:
                 "Massa! Vejo que você tem paixão alvirrubra mesmo. Vou te mostrar "
                 "como fazer parte da nossa família de sócios!"
             ),
-            "default": "Como posso ajudar você com o programa de sócios do Náutico hoje? ⚪🔴"
+            "default": "Como posso ajudar você a apoiar o Náutico nessa reta final rumo à Série B? ⚪🔴"
         }
         response = fallbacks.get(context, fallbacks["default"])
         return f"<RESPOSTA_FINAL>{response}</RESPOSTA_FINAL>"

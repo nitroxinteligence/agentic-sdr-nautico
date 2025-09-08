@@ -381,7 +381,9 @@ class AgenticSDRStateless:
                         # Se áudio não foi enviado, dar mensagem apropriada
                         response = (
                             f"Olá, {extracted_name}! Que bom te conhecer melhor. "
-                            f"Agora vou te explicar como nosso programa náutico funciona..."
+                            f"Agora que estamos nessa reta final do quadrangular rumo à Série B, "
+                            f"é o momento perfeito pra você apoiar o Timba! Vou te explicar como "
+                            f"nosso programa de sócios funciona..."
                         )
                     
                     # Nota: A movimentação para "Em Qualificação" já foi feita no _handle_initial_trigger_audio

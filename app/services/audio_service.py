@@ -27,10 +27,8 @@ class AudioService:
         }
         
         # URL do áudio inicial do presidente Hélio dos Anjos
-        self.initial_audio_url = (
-            "https://qvehtvvlalskxbeaflzs.supabase.co/storage/v1/object/public/"
-            "documents/AUDIO-ENVIAR-NO-INICIO-DA-CONVERSA-2%20(1).mp3"
-        )
+        # Usar URL configurável do arquivo de configurações
+        self.initial_audio_url = settings.initial_audio_url
         
         self._session_timeout = aiohttp.ClientTimeout(total=60)
 

@@ -78,7 +78,16 @@ class FollowUpServiceReal:
         if not self.is_initialized:
             await self.initialize()
         try:
-            scheduled_time = datetime.now(pytz.utc) + timedelta(hours=delay_hours)
+            # Calcular horário inicial
+            initial_scheduled_time = datetime.now(pytz.utc) + timedelta(hours=delay_hours)
+            
+            # Validar se está em horário comercial (conforme novo prompt)
+            if hasattr(settings, 'is_business_hours') and callable(settings.is_business_hours):
+                # Se o horário agendado estiver fora do horário comercial, 
+                # agendar para o próximo horário comercial
+                scheduled_time = self._adjust_to_business_hours(initial_scheduled_time)
+            else:
+                scheduled_time = initial_scheduled_time
             clean_phone = ''.join(filter(str.isdigit, phone_number))
             if not clean_phone.startswith('55'):
                 clean_phone = '55' + clean_phone
@@ -227,6 +236,59 @@ class FollowUpServiceReal:
     async def close(self):
         """Fecha conexões de forma segura"""
         pass
+
+    def _adjust_to_business_hours(self, scheduled_time: datetime) -> datetime:
+        """Ajusta horário agendado para horário comercial se necessário"""
+        try:
+            # Converter para timezone de São Paulo
+            br_timezone = pytz.timezone(settings.business_timezone)
+            scheduled_br = scheduled_time.astimezone(br_timezone)
+            
+            # Obter configurações de horário comercial
+            business_start = datetime.strptime(settings.business_hours_start, "%H:%M").time()
+            business_end = datetime.strptime(settings.business_hours_end, "%H:%M").time()
+            
+            # Verificar se é fim de semana
+            if scheduled_br.weekday() >= 5 and not settings.weekend_support:
+                # Mover para segunda-feira
+                days_until_monday = 7 - scheduled_br.weekday()
+                scheduled_br = scheduled_br.replace(
+                    hour=business_start.hour, 
+                    minute=business_start.minute,
+                    second=0,
+                    microsecond=0
+                ) + timedelta(days=days_until_monday)
+                
+            # Verificar se está fora do horário comercial
+            elif scheduled_br.time() < business_start:
+                # Agendar para início do horário comercial do mesmo dia
+                scheduled_br = scheduled_br.replace(
+                    hour=business_start.hour,
+                    minute=business_start.minute,
+                    second=0,
+                    microsecond=0
+                )
+            elif scheduled_br.time() > business_end:
+                # Agendar para início do próximo dia útil
+                next_day = scheduled_br + timedelta(days=1)
+                if next_day.weekday() >= 5 and not settings.weekend_support:
+                    # Se próximo dia for fim de semana, ir para segunda
+                    days_until_monday = 7 - next_day.weekday()
+                    next_day += timedelta(days=days_until_monday)
+                
+                scheduled_br = next_day.replace(
+                    hour=business_start.hour,
+                    minute=business_start.minute,
+                    second=0,
+                    microsecond=0
+                )
+            
+            # Converter de volta para UTC
+            return scheduled_br.astimezone(pytz.utc)
+            
+        except Exception as e:
+            emoji_logger.service_warning(f"Erro ao ajustar horário comercial: {e}")
+            return scheduled_time
 
     async def _get_or_create_supabase_lead_id(
             self, lead_info: Dict[str, Any]
