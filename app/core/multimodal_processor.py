@@ -469,7 +469,21 @@ class MultimodalProcessor:
         """
         Valida se o valor está na lista de valores válidos do programa de sócios do Náutico.
         """
-        valid_values = [399.90, 99.90, 39.90, 24.90, 79.90, 3000.00, 1518.00, 12.90, 11.00, 50.00, 10.00]
+        valid_values = [
+            # Planos principais do Náutico
+            399.90, 399.00,  # Plano premium
+            99.90, 99.00,    # Plano básico 
+            39.90, 39.00,    # Plano starter
+            24.90, 24.00,    # Plano mínimo
+            79.90, 79.00,    # Plano intermediário
+            
+            # Valores especiais e anuais
+            3000.00, 1518.00, 
+            
+            # Outros valores possíveis
+            12.90, 12.00, 11.00, 10.00, 50.00, 25.00, 30.00, 
+            15.00, 20.00, 35.00, 40.00, 75.00, 80.00, 95.00, 100.00
+        ]
         
         # Considerar uma pequena margem de erro para valores decimais
         tolerance = 0.01

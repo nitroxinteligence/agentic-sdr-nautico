@@ -528,6 +528,35 @@ class AgenticSDRStateless:
                         f"💰 Comprovante detectado - Valor: R${payment_value}, "
                         f"Pagador: {payer_name}, Válido: {is_valid_payment}"
                     )
+                    
+                    # Se o comprovante é válido, qualificar automaticamente o lead
+                    if is_valid_payment and payment_value:
+                        try:
+                            from app.tools.stage_management_tools import StageManagementTools
+                            stage_tools = StageManagementTools()
+                            
+                            emoji_logger.system_info("🎯 Qualificando automaticamente lead com comprovante válido")
+                            
+                            # Mover para "Qualificado" 
+                            qualification_result = await stage_tools.move_to_qualificado(
+                                lead_info=lead_info,
+                                payment_value=str(payment_value),
+                                payment_valid=True,
+                                notes=f"Qualificado automaticamente - Comprovante de pagamento válido de R${payment_value}"
+                            )
+                            
+                            if qualification_result.get("success"):
+                                emoji_logger.system_success(
+                                    f"✅ Lead qualificado automaticamente - Pagamento R${payment_value} confirmado"
+                                )
+                                lead_info.update(qualification_result.get("updated_lead_info", {}))
+                            else:
+                                emoji_logger.system_error(
+                                    f"Erro ao qualificar lead automaticamente: {qualification_result.get('message')}"
+                                )
+                                
+                        except Exception as e:
+                            emoji_logger.system_error(f"Erro na qualificação automática: {e}")
             else:
                 emoji_logger.system_warning(f"Falha na extração de texto da mídia: {media_result.get('message')}")
 
