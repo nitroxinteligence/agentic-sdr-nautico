@@ -312,9 +312,9 @@ class AgenticSDRStateless:
                 emoji_logger.agentic_start("🆕 Nova conversa - perguntando nome antes de criar lead")
                 
                 response = (
-                    "<RESPOSTA_FINAL>Opa, tudo joia? Aqui é Marina Campelo, do Náutico! "
-                    "Vi que você respondeu nossa mensagem e mostrou interesse no clube. "
-                    "Que massa! Antes de mais nada, me diz teu nome pra eu te atender direito, visse?</RESPOSTA_FINAL>"
+                    "Olá! Aqui é Marina Campelo, do Náutico! "
+                    "Vi que você demonstrou interesse no clube. "
+                    "Qual é seu nome para eu te atender melhor?"
                 )
                 
                 # Criar lead temporário APENAS para manter estado (sem nome ainda)
@@ -375,17 +375,17 @@ class AgenticSDRStateless:
                     if audio_sent:
                         # Resposta personalizada conectando com áudio
                         response = (
-                            f"<RESPOSTA_FINAL>Pronto, {extracted_name}! Acabei de te mandar um recado especial "
-                            f"do nosso comandante Hélio dos Anjos. Dá uma escutada aí que é importante! "
-                            f"A gente tá numa missão e cada alvirrubro conta muito.</RESPOSTA_FINAL>"
+                            f"{extracted_name}, enviei um áudio especial do nosso comandante "
+                            f"Hélio dos Anjos! Estamos na campanha de acesso à Série B e "
+                            f"cada torcedor como você pode fazer a diferença."
                         )
                     else:
                         # Se áudio não foi enviado, dar mensagem apropriada
                         response = (
-                            f"<RESPOSTA_FINAL>Olá, {extracted_name}! Que bom te conhecer melhor. "
-                            f"Agora que estamos nessa reta final do quadrangular rumo à Série B, "
-                            f"é o momento perfeito pra você apoiar o Timba! Vou te explicar como "
-                            f"nosso programa de sócios funciona...</RESPOSTA_FINAL>"
+                            f"Olá, {extracted_name}! Que bom te conhecer melhor. "
+                            f"Estamos na campanha de acesso à Série B e é o momento perfeito "
+                            f"para você apoiar o Náutico! Vou te explicar como "
+                            f"nosso programa de sócios funciona..."
                         )
                     
                     # Nota: A movimentação para "Em Qualificação" já foi feita no _handle_initial_trigger_audio
@@ -398,18 +398,18 @@ class AgenticSDRStateless:
                     # Mensagens variadas para diferentes situações
                     if len(message.strip()) < 3:
                         response = (
-                            "<RESPOSTA_FINAL>Eita, acho que não entendi bem! Preciso do teu nome completo "
-                            "pra te atender direito. Pode me dizer teu nome e sobrenome?</RESPOSTA_FINAL>"
+                            "Não entendi bem! Preciso do seu nome completo "
+                            "para te atender direito. Pode me dizer seu nome e sobrenome?"
                         )
                     elif message.strip().lower() in ['eu', 'me', 'mim']:
                         response = (
-                            "<RESPOSTA_FINAL>Opa, eu sei que é você mesmo! rsrs Mas preciso saber como te chamar. "
-                            "Qual é o teu nome? Me diz aí!</RESPOSTA_FINAL>"
+                            "Sei que é você mesmo! Mas preciso saber como te chamar. "
+                            "Qual é o seu nome? Me diga aí!"
                         )
                     else:
                         response = (
-                            "<RESPOSTA_FINAL>Oxente, não consegui pegar teu nome direito. "
-                            "Pode me dizer teu nome completo? É só pra eu te tratar do jeito certo, visse?</RESPOSTA_FINAL>"
+                            "Não consegui entender seu nome direito. "
+                            "Pode me dizer seu nome completo? É para eu te tratar corretamente."
                         )
                     return response, lead_info
 
@@ -481,8 +481,8 @@ class AgenticSDRStateless:
                 f"💥 FALHA NO PROCESSAMENTO - {phone}: '{message[:50]}...' -> ERRO: {str(e)[:50]}..."
             )
             return (
-                "<RESPOSTA_FINAL>Desculpe, tive um problema aqui. "
-                "Pode repetir?</RESPOSTA_FINAL>",
+                "Desculpe, tive um problema aqui. "
+                "Pode repetir?",
                 execution_context.get("lead_info", {})
             )
 
@@ -1006,7 +1006,7 @@ class AgenticSDRStateless:
         date_context = f"<contexto_temporal>\nA data e hora atuais são: {current_date_str} ({day_of_week_pt}).\n</contexto_temporal>\n\n"
         
         # Adicionar instrução crítica sobre formatação da resposta
-        formatting_instruction = "\n\n<INSTRUÇÃO_CRÍTICA>\nSua resposta final DEVE estar sempre dentro da tag <RESPOSTA_FINAL>. \nExemplo: <RESPOSTA_FINAL>Sua mensagem aqui</RESPOSTA_FINAL>\n</INSTRUÇÃO_CRÍTICA>\n"
+        formatting_instruction = "\n\nIMPORTANTE: Responda sempre de forma direta, sem tags ou formatação especial. Use linguagem profissional e objetiva.\n"
         
         system_prompt_with_context = date_context + system_prompt + formatting_instruction
 
@@ -1030,7 +1030,7 @@ class AgenticSDRStateless:
             emoji_logger.model_error(
                 f"Tentativa de chamar o modelo com conteúdo vazio. History len: {len(conversation_history)}, is_followup: {is_followup}"
             )
-            return "<RESPOSTA_FINAL>Não consegui processar sua solicitação no momento.</RESPOSTA_FINAL>"
+            return "Não consegui processar sua solicitação no momento."
 
         # 3. Primeira chamada ao modelo para obter a resposta inicial (que pode conter tools).
         response_text = await self.model_manager.get_response(

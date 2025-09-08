@@ -534,31 +534,26 @@ async def process_contacts_update(data: Dict[str, Any]):
 
 def extract_final_response(full_response: str) -> str:
     """
-    Extrai e limpa o conteúdo dentro da tag <RESPOSTA_FINAL>, removendo
-    outras tags de raciocínio e garantindo uma saída segura.
+    Processa e limpa a resposta, removendo tags desnecessárias
+    e garantindo uma saída limpa e direta.
     """
     if not isinstance(full_response, str):
         return "Desculpe, ocorreu um erro inesperado."
 
-    match = re.search(r'<RESPOSTA_FINAL>(.*?)</RESPOSTA_FINAL>', full_response, re.DOTALL | re.IGNORECASE)
+    # Remove todas as tags RESPOSTA_FINAL antigas se existirem
+    clean_response = re.sub(r'</?RESPOSTA_FINAL>', '', full_response, flags=re.IGNORECASE)
     
-    if match:
-        final_response = match.group(1).strip()
-    else:
-        emoji_logger.system_warning(
-            "Tag <RESPOSTA_FINAL> não encontrada na resposta do LLM.",
-            raw_response=full_response[:500]
-        )
-        temp_response = re.sub(r'</?analise_interna>.*?</analise_interna>', '', full_response, flags=re.DOTALL | re.IGNORECASE)
-        temp_response = re.sub(r'</?RESPOSTA_FINAL>', '', temp_response, flags=re.IGNORECASE)
-        
-        if '<' in temp_response and '>' in temp_response:
-            emoji_logger.system_error("extract_final_response", "Nenhuma tag <RESPOSTA_FINAL> clara e ainda há outras tags. Usando fallback.")
-            return "Estou finalizando sua solicitação. Um momento."
-        final_response = temp_response.strip()
+    # Remove tags de análise interna
+    clean_response = re.sub(r'</?analise_interna>.*?</analise_interna>', '', clean_response, flags=re.DOTALL | re.IGNORECASE)
+    
+    # Remove outras tags XML que podem vazar
+    clean_response = re.sub(r'<[^>]+>', '', clean_response)
+    
+    # Limpar espaços
+    final_response = clean_response.strip()
 
     if not final_response or final_response.lower() == "none":
-        emoji_logger.system_warning("A resposta final do LLM estava vazia ou 'none'. Usando fallback de esclarecimento.")
+        emoji_logger.system_warning("A resposta estava vazia. Usando fallback.")
         return "Pode repetir, por favor? Não entendi bem o que você quis dizer."
 
     return final_response
