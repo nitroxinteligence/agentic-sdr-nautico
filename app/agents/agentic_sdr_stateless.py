@@ -36,7 +36,6 @@ from app.services.service_wrappers import (
 from app.tools.stage_management_tools import StageManagementTools
 from app.tools.followup_nautico_tools import FollowUpNauticoTools
 from app.services.audio_service import AudioService
-from app.services.clear_command_service import clear_command_service
 
 
 class AgenticSDRStateless:
@@ -288,26 +287,10 @@ class AgenticSDRStateless:
         emoji_logger.agentic_start(f"🤖 AGENTE STATELESS INICIADO - Mensagem: '{message[:100]}...'")
 
         try:
-            # Etapa 0: VERIFICAR COMANDO #CLEAR ANTES DE QUALQUER PROCESSAMENTO
-            phone = execution_context.get("phone")
-            
-            # Detectar e executar comando #clear se presente
-            clear_executed, clear_result = await clear_command_service.execute_clear_command(phone, message)
-            
-            if clear_executed:
-                emoji_logger.system_info(f"🧹 CLEAR COMMAND PROCESSED para {phone}")
-                
-                # Retornar resposta do comando clear
-                if clear_result.get("success"):
-                    # Se clear foi bem-sucedido, forçar reset do contexto
-                    return clear_result.get("message", "Histórico limpo com sucesso!"), {}
-                else:
-                    # Se clear falhou, retornar mensagem de erro
-                    return clear_result.get("message", "Erro ao limpar histórico."), execution_context.get("lead_info", {})
-            
-            # Etapa 1: Preparar o contexto da execução (APENAS se não foi comando clear)
+            # Etapa 1: Preparar o contexto da execução
             conversation_history = execution_context.get("conversation_history", [])
             lead_info = execution_context.get("lead_info", {})
+            phone = execution_context.get("phone")
             
             emoji_logger.system_debug(
                 f"📋 CONTEXTO CARREGADO - Telefone: {phone}, "
