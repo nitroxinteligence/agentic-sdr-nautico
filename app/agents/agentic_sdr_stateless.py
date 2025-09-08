@@ -225,7 +225,8 @@ class AgenticSDRStateless:
             self.multimodal.initialize()
             self.lead_manager.initialize()
             self.context_analyzer.initialize()
-            await self.conversation_monitor.initialize()
+            # TEMPORARIAMENTE DESABILITADO: ConversationMonitor
+            # await self.conversation_monitor.initialize()
             
             # Inicializar serviços condicionalmente
             if self.calendar_service:
@@ -297,9 +298,10 @@ class AgenticSDRStateless:
                 f"Lead: {lead_info.get('name', 'N/A')} (ID: {lead_info.get('id', 'N/A')})"
             )
 
-            emoji_logger.system_debug("Registrando mensagem do usuário...")
-            await self.conversation_monitor.register_message(phone=phone, is_from_user=True, lead_info=lead_info)
-            emoji_logger.system_success("Mensagem do usuário registrada")
+            # TEMPORARIAMENTE DESABILITADO: ConversationMonitor 
+            # emoji_logger.system_debug("Registrando mensagem do usuário...")
+            # await self.conversation_monitor.register_message(phone=phone, is_from_user=True, lead_info=lead_info)
+            # emoji_logger.system_success("Mensagem do usuário registrada")
 
             # NOVO: Verificar estado da conversa ANTES de processar
             conversation_state = await self._get_conversation_state(lead_info)
@@ -446,9 +448,10 @@ class AgenticSDRStateless:
             emoji_logger.system_success(f"Resposta LLM gerada: '{response[:100]}...'")
 
             # Etapa 5: Finalizar e registrar a resposta
-            emoji_logger.system_debug("Registrando resposta do assistente...")
-            await self.conversation_monitor.register_message(phone=phone, is_from_user=False, lead_info=lead_info)
-            emoji_logger.system_success("Resposta do assistente registrada")
+            # TEMPORARIAMENTE DESABILITADO: ConversationMonitor
+            # emoji_logger.system_debug("Registrando resposta do assistente...")
+            # await self.conversation_monitor.register_message(phone=phone, is_from_user=False, lead_info=lead_info)
+            # emoji_logger.system_success("Resposta do assistente registrada")
 
             # Correção: Adicionar verificação do protocolo de silêncio ANTES de formatar
             if "<SILENCE>" in response or "<SILENCIO>" in response:

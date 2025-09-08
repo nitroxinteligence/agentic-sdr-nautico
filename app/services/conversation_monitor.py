@@ -124,18 +124,9 @@ class ConversationMonitor:
                     current_status=current_status
                 )
 
-                # Atualiza o status no Redis com base na decisão do FollowUpManagerService
-                # A lógica de atualização do status no Redis é movida para cá
-                if inactive_time > timedelta(minutes=30) and current_status != 'followup_30min_sent':
-                    await self.redis.set(status_key, 'followup_30min_sent')
-                    emoji_logger.system_info(
-                        f"⏰ Status Redis atualizado: followup_30min_sent para {phone[:8]}..."
-                    )
-                elif inactive_time > timedelta(hours=24) and current_status != 'followup_24h_sent':
-                    await self.redis.set(status_key, 'followup_24h_sent')
-                    emoji_logger.system_info(
-                        f"📅 Status Redis atualizado: followup_24h_sent para {phone[:8]}..."
-                    )
+                # DESABILITADO: Sistema de status Redis conflitando com sistema principal
+                # O FollowUpNauticoTools gerencia os follow-ups através do banco de dados
+                # emoji_logger.system_debug(f"🔍 Monitor: Lead {lead['id'][:8]}... inativo há {inactive_time.total_seconds()/60:.1f}min")
 
         except Exception as e:
             emoji_logger.system_error(

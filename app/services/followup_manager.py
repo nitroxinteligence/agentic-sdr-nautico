@@ -29,20 +29,10 @@ class FollowUpManagerService:
         now = datetime.now()
         inactive_time = now - inactive_since
 
-        # Lógica para follow-up de 30 minutos
-        if inactive_time > timedelta(minutes=30) and current_status != 'followup_30min_sent':
-            await self._schedule_reengagement_followup(
-                lead_id, phone_number, 'IMMEDIATE_REENGAGEMENT', inactive_since.isoformat()
-            )
-            # Atualizar status no Redis para evitar agendamentos duplicados
-            # Isso será feito no ConversationMonitor, que chamará este serviço
-
-        # Lógica para follow-up de 24 horas
-        elif inactive_time > timedelta(hours=24) and current_status != 'followup_24h_sent':
-            await self._schedule_reengagement_followup(
-                lead_id, phone_number, 'DAILY_NURTURING', inactive_since.isoformat()
-            )
-            # Atualizar status no Redis
+        # DESABILITADO: Sistema conflitando com FollowUpNauticoTools
+        # O sistema principal de follow-ups já agenda os 4 follow-ups (30min, 4h, 24h, 48h)
+        # Este monitor de inatividade estava criando follow-ups duplicados e imediatos
+        emoji_logger.system_debug(f"🔍 Monitor inatividade: {inactive_time.total_seconds()/60:.1f}min para lead {lead_id[:8]}... - Sistema desabilitado temporariamente")
 
     async def _schedule_reengagement_followup(
         self,

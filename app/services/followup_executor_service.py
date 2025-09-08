@@ -30,6 +30,10 @@ class FollowUpSchedulerService:
             logger.warning("Agendador de follow-ups já está rodando.")
             return
         self.running = True
+        
+        # Limpar follow-ups conflitantes na inicialização
+        await self.cleanup_conflicting_followups()
+        
         emoji_logger.system_ready("FollowUp Scheduler")
         asyncio.create_task(self._scheduling_loop())
 
@@ -144,3 +148,36 @@ class FollowUpSchedulerService:
         logger.info("🔄 Forçando enfileiramento de follow-ups...")
         await self.enqueue_pending_followups()
         logger.info("✅ Processo de enfileiramento concluído.")
+
+    async def cleanup_conflicting_followups(self):
+        """
+        Remove follow-ups criados pelo sistema antigo (ConversationMonitor)
+        que conflitam com o sistema principal do Náutico.
+        """
+        try:
+            # Buscar follow-ups do tipo IMMEDIATE_REENGAGEMENT e DAILY_NURTURING
+            conflicting_types = ['IMMEDIATE_REENGAGEMENT', 'DAILY_NURTURING']
+            
+            result = await asyncio.to_thread(
+                self.db.client.table('follow_ups').select("*").in_(
+                    'follow_up_type', conflicting_types
+                ).eq('status', 'pending').execute
+            )
+            
+            conflicting_followups = result.data or []
+            
+            if conflicting_followups:
+                logger.info(f"🧹 Encontrados {len(conflicting_followups)} follow-ups conflitantes para limpeza")
+                
+                for followup in conflicting_followups:
+                    await self.db.update_follow_up_status(
+                        followup['id'], 'cancelled', 'Cancelado - conflito com sistema principal'
+                    )
+                    logger.info(f"🗑️ Follow-up cancelado: {followup['id']} (tipo: {followup.get('follow_up_type')})")
+                    
+                logger.info(f"✅ Limpeza concluída: {len(conflicting_followups)} follow-ups cancelados")
+            else:
+                logger.info("✅ Nenhum follow-up conflitante encontrado")
+                
+        except Exception as e:
+            logger.error(f"❌ Erro na limpeza de follow-ups conflitantes: {e}")

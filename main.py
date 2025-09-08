@@ -112,10 +112,10 @@ async def lifespan(app: FastAPI):
         message_splitter = get_message_splitter()
         emoji_logger.system_ready("Message Splitter", data={"max_length": message_splitter.max_length})
 
-        # Inicializar Conversation Monitor
-        conversation_monitor = get_conversation_monitor()
-        await conversation_monitor.initialize()
-        emoji_logger.system_ready("Conversation Monitor")
+        # TEMPORARIAMENTE DESABILITADO: Conversation Monitor conflitando com sistema principal
+        # conversation_monitor = get_conversation_monitor()
+        # await conversation_monitor.initialize()
+        emoji_logger.system_info("Conversation Monitor DESABILITADO - usando apenas sistema principal de follow-ups")
 
         # Inicializar sistema refatorado
         emoji_logger.system_ready("Sistema Refatorado", data={"modules": "Core + Services"})
@@ -169,9 +169,9 @@ async def lifespan(app: FastAPI):
         if 'message_buffer' in locals():
             await message_buffer.shutdown()
         
-        conversation_monitor = get_conversation_monitor()
-        if conversation_monitor:
-            await conversation_monitor.shutdown()
+        # conversation_monitor = get_conversation_monitor()
+        # if conversation_monitor:
+        #     await conversation_monitor.shutdown()
             
         if redis_client:
             await redis_client.disconnect()

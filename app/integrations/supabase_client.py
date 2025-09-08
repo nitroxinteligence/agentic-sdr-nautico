@@ -326,7 +326,12 @@ class SupabaseClient:
 
             follow_ups = result.data or []
             if follow_ups:
-                logger.info(f"🔍 FOLLOW-UPS PENDENTES: {len(follow_ups)} encontrados. Primeiro agendado para: {follow_ups[0].get('scheduled_at') if follow_ups else 'N/A'}")
+                logger.info(f"🔍 FOLLOW-UPS PENDENTES: {len(follow_ups)} encontrados. Tempo atual: {now}")
+                for i, fu in enumerate(follow_ups[:3]):  # Log dos primeiros 3
+                    scheduled_at = fu.get('scheduled_at', 'N/A')
+                    fu_type = fu.get('follow_up_type', 'N/A') 
+                    lead_id = fu.get('lead_id', 'N/A')
+                    logger.info(f"    Follow-up {i+1}: Lead={lead_id[:8] if lead_id else 'N/A'}..., Tipo={fu_type}, Agendado={scheduled_at}")
             
             return follow_ups
 
