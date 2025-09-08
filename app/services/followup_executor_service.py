@@ -23,7 +23,7 @@ class FollowUpSchedulerService:
         self.db = SupabaseClient()
         self.redis = redis_client
         self.running = False
-        self.check_interval = 15
+        self.check_interval = 60  # Aumentado de 15s para 60s para reduzir spam
 
     async def start(self):
         if self.running:
@@ -60,15 +60,31 @@ class FollowUpSchedulerService:
             )
             for followup in pending_followups:
                 lead_id = followup.get('lead_id')
+                followup_id = followup.get('id')
+                
+                # Verificar se já processamos este follow-up recentemente 
+                recently_checked_key = f"followup_checked:{followup_id}"
+                if await self.redis.get(recently_checked_key):
+                    continue  # Pular, já verificamos recentemente
+                    
+                # Marcar como verificado por 5 minutos
+                await self.redis.set(recently_checked_key, "1", expire_time=300)
+                
                 if lead_id:
                     one_week_ago = now - timedelta(days=7)
                     count = await self.db.get_recent_followup_count(
                         lead_id, one_week_ago
                     )
                     if count >= settings.max_follow_up_attempts:
-                        emoji_logger.system_warning(
-                            f"🚫 Limite de follow-ups atingido para o lead {lead_id}."
-                        )
+                        followup_type = followup.get('type', 'UNKNOWN')
+                        # Só log uma vez por follow-up específico, não spam
+                        cancelled_key = f"followup_cancelled:{followup['id']}"
+                        if not await self.redis.get(cancelled_key):
+                            emoji_logger.system_warning(
+                                f"🚫 Limite de follow-ups atingido para o lead {lead_id}. Tipo: {followup_type}"
+                            )
+                            await self.redis.set(cancelled_key, "1", expire_time=86400)  # 24h
+                        
                         await self.db.update_follow_up_status(
                             followup['id'], 'cancelled'
                         )
