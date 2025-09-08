@@ -83,13 +83,9 @@ class FollowUpServiceReal:
             initial_scheduled_time = current_time + timedelta(hours=delay_hours)
             emoji_logger.system_info(f"🕐 AGENDANDO FOLLOW-UP: delay_hours={delay_hours}, tempo_atual={current_time.isoformat()}, agendado_para={initial_scheduled_time.isoformat()}, diferenca_horas={(initial_scheduled_time - current_time).total_seconds() / 3600}")
             
-            # Validar se está em horário comercial (conforme novo prompt)
-            if hasattr(settings, 'is_business_hours') and callable(settings.is_business_hours):
-                # Se o horário agendado estiver fora do horário comercial, 
-                # agendar para o próximo horário comercial
-                scheduled_time = self._adjust_to_business_hours(initial_scheduled_time)
-            else:
-                scheduled_time = initial_scheduled_time
+            # Validar e ajustar para horário comercial mantendo intervalos relativos
+            scheduled_time = self._ensure_business_hours(initial_scheduled_time, delay_hours)
+            emoji_logger.service_info(f"🕐 Horário final agendado: {scheduled_time.isoformat()}")
             clean_phone = ''.join(filter(str.isdigit, phone_number))
             if not clean_phone.startswith('55'):
                 clean_phone = '55' + clean_phone
@@ -239,21 +235,98 @@ class FollowUpServiceReal:
         """Fecha conexões de forma segura"""
         pass
 
+    def _ensure_business_hours(self, scheduled_time: datetime, delay_hours: float) -> datetime:
+        """Garante que follow-up seja agendado dentro do horário comercial"""
+        try:
+            # Converter para timezone de São Paulo
+            br_timezone = pytz.timezone(settings.business_timezone)
+            scheduled_br = scheduled_time.astimezone(br_timezone)
+            
+            # Configurações de horário comercial
+            business_start = datetime.strptime(settings.business_hours_start, "%H:%M").time()
+            business_end = datetime.strptime(settings.business_hours_end, "%H:%M").time()
+            
+            emoji_logger.service_info(f"🕐 Validando horário: {scheduled_br.isoformat()}, comercial: {business_start}-{business_end}")
+            
+            # Se está dentro do horário comercial e é dia útil, manter
+            if (business_start <= scheduled_br.time() <= business_end and 
+                scheduled_br.weekday() < 5):
+                emoji_logger.service_info("✅ Horário válido - mantendo")
+                return scheduled_time
+            
+            # Se não está no horário comercial, encontrar próximo horário válido
+            next_business_time = self._find_next_business_time(scheduled_br, delay_hours)
+            result_utc = next_business_time.astimezone(pytz.utc)
+            
+            emoji_logger.service_info(f"🔄 Ajustado para: {result_utc.isoformat()}")
+            return result_utc
+            
+        except Exception as e:
+            emoji_logger.service_warning(f"Erro ao validar horário comercial: {e}")
+            return scheduled_time
+    
+    def _find_next_business_time(self, scheduled_br: datetime, delay_hours: float) -> datetime:
+        """Encontra o próximo horário comercial válido preservando intervalo relativo"""
+        business_start = datetime.strptime(settings.business_hours_start, "%H:%M").time()
+        business_end = datetime.strptime(settings.business_hours_end, "%H:%M").time()
+        
+        # Calcular que proporção do dia útil este delay representa
+        if delay_hours <= 0.5:  # 30 minutos - início do expediente
+            target_time = business_start
+        elif delay_hours <= 4:  # 4 horas - meio do expediente  
+            mid_morning = datetime.combine(scheduled_br.date(), business_start).replace(tzinfo=scheduled_br.tzinfo) + timedelta(hours=2)
+            target_time = mid_morning.time()
+        elif delay_hours <= 24:  # 24 horas - próximo dia útil, início
+            target_time = business_start
+        else:  # 48+ horas - próximo dia útil apropriado, meio-dia
+            noon = datetime.strptime("12:00", "%H:%M").time()
+            if noon <= business_end:
+                target_time = noon
+            else:
+                target_time = business_start
+        
+        # Encontrar próximo dia útil se necessário
+        target_date = scheduled_br.date()
+        
+        # Se for fim de semana ou fora do horário, ir para próximo dia útil
+        while target_date.weekday() >= 5:  # Sábado ou Domingo
+            target_date += timedelta(days=1)
+            
+        # Se o horário calculado já passou hoje e é dia útil, ir para próximo dia útil
+        current_br_time = datetime.now(scheduled_br.tzinfo).time()
+        if (target_date == datetime.now(scheduled_br.tzinfo).date() and 
+            target_time <= current_br_time and 
+            scheduled_br.weekday() < 5):
+            target_date += timedelta(days=1)
+            while target_date.weekday() >= 5:
+                target_date += timedelta(days=1)
+        
+        # Construir datetime final
+        result = datetime.combine(target_date, target_time).replace(tzinfo=scheduled_br.tzinfo)
+        return result
+
     def _adjust_to_business_hours(self, scheduled_time: datetime) -> datetime:
         """Ajusta horário agendado para horário comercial mantendo intervalos relativos"""
         try:
+            emoji_logger.service_info(f"🕐 AJUSTE HORÁRIO: scheduled_time={scheduled_time.isoformat()}")
+            
             # Converter para timezone de São Paulo
             br_timezone = pytz.timezone(settings.business_timezone)
             scheduled_br = scheduled_time.astimezone(br_timezone)
             original_time = scheduled_br.time()
             
+            emoji_logger.service_info(f"🇧🇷 Horário BR: {scheduled_br.isoformat()}, time={original_time}, weekday={scheduled_br.weekday()}")
+            
             # Obter configurações de horário comercial
             business_start = datetime.strptime(settings.business_hours_start, "%H:%M").time()
             business_end = datetime.strptime(settings.business_hours_end, "%H:%M").time()
             
+            emoji_logger.service_info(f"⏰ Horário comercial: {business_start} - {business_end}, weekend_support={settings.weekend_support}")
+            
             # Se está dentro do horário comercial e não é fim de semana, manter horário original
             if (business_start <= scheduled_br.time() <= business_end and 
                 (scheduled_br.weekday() < 5 or settings.weekend_support)):
+                emoji_logger.service_info(f"✅ Mantendo horário original (dentro do comercial)")
                 return scheduled_time.astimezone(pytz.utc)
             
             # Calcular minutos desde início do horário comercial para manter proporção
@@ -287,6 +360,7 @@ class FollowUpServiceReal:
                 
             # Se está antes do horário comercial
             elif scheduled_br.time() < business_start:
+                emoji_logger.service_info(f"⏰ ANTES do horário comercial - ajustando para início ({business_start})")
                 # Agendar para início do horário comercial do mesmo dia
                 scheduled_br = scheduled_br.replace(
                     hour=business_start.hour,
@@ -295,6 +369,7 @@ class FollowUpServiceReal:
                     microsecond=0
                 )
             elif scheduled_br.time() > business_end:
+                emoji_logger.service_info(f"⏰ DEPOIS do horário comercial - movendo para próximo dia")
                 # Agendar para próximo dia útil
                 next_day = scheduled_br + timedelta(days=1)
                 while next_day.weekday() >= 5 and not settings.weekend_support:
@@ -307,8 +382,12 @@ class FollowUpServiceReal:
                     microsecond=0
                 )
             
+            emoji_logger.service_info(f"🔄 RESULTADO AJUSTE: {scheduled_br.isoformat()}")
+            
             # Converter de volta para UTC
-            return scheduled_br.astimezone(pytz.utc)
+            result_utc = scheduled_br.astimezone(pytz.utc)
+            emoji_logger.service_info(f"🌍 RESULTADO UTC: {result_utc.isoformat()}")
+            return result_utc
             
         except Exception as e:
             emoji_logger.service_warning(f"Erro ao ajustar horário comercial: {e}")
