@@ -471,6 +471,7 @@ class MultimodalProcessor:
         """
         Valida se o valor está na lista de valores válidos do programa de sócios do Náutico.
         """
+        emoji_logger.system_info(f"🔍 VALIDANDO VALOR: {value} (tipo: {type(value)})")
         valid_values = [
             # Planos principais do Náutico
             399.90, 399.00,  # Plano premium
@@ -491,8 +492,10 @@ class MultimodalProcessor:
         tolerance = 0.01
         for valid_value in valid_values:
             if abs(value - valid_value) <= tolerance:
+                emoji_logger.system_info(f"🔍 VALOR VÁLIDO ENCONTRADO: {value} ≈ {valid_value}")
                 return True
         
+        emoji_logger.system_warning(f"🔍 VALOR INVÁLIDO: {value} não está na lista de valores válidos")
         return False
 
     def get_supported_types(self) -> List[str]:

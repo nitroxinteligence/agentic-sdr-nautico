@@ -456,6 +456,9 @@ class AgenticSDRStateless:
                 return "<SILENCE>", lead_info
 
             final_response = response_formatter.ensure_response_tags(response)
+            # ANÁLISE DA RESPOSTA PARA AÇÕES DO CRM
+            await self._execute_crm_actions_from_response(final_response, lead_info, execution_context)
+            
             emoji_logger.agentic_success(
                 f"✅ AGENTE STATELESS CONCLUÍDO - {phone}: "
                 f"'{message[:50]}...' -> '{final_response[:50]}...'"
@@ -503,7 +506,9 @@ class AgenticSDRStateless:
                 "media_data": {"mime_type": mime_type, "content": media_content}
             })
             emoji_logger.multimodal_event(f"📎 Mídia do tipo {mime_type} adicionada.")
+            emoji_logger.system_info(f"🔍 INICIANDO PROCESSAMENTO MÍDIA: mime_type={mime_type}")
             media_result = await self.multimodal.process_media(media_data)
+            emoji_logger.system_info(f"🔍 RESULTADO PROCESSAMENTO: success={media_result.get('success')}")
             if media_result.get("success"):
                 analysis = media_result.get("analysis", {})
                 
@@ -512,6 +517,10 @@ class AgenticSDRStateless:
                 if extracted_payment_value:
                     lead_info['membership_interest'] = 8  # Alto interesse por enviar comprovante
                     emoji_logger.system_info(f"Pagamento de R${extracted_payment_value} detectado - interesse alto definido.")
+                
+                # Debug: Verificar se chegou na análise de pagamento
+                emoji_logger.system_info(f"🔍 ANÁLISE MÍDIA: analysis.keys()={list(analysis.keys()) if analysis else 'None'}")
+                emoji_logger.system_info(f"🔍 IS_PAYMENT_RECEIPT: {analysis.get('is_payment_receipt') if analysis else 'No analysis'}")
                 
                 # Processar comprovante de pagamento do Náutico
                 if analysis.get("is_payment_receipt"):
@@ -641,6 +650,44 @@ class AgenticSDRStateless:
                 emoji_logger.system_error("Kommo Integration", f"Falha ao criar lead no Kommo para lead existente no Supabase: {str(e)}")
 
         return lead_info
+
+    async def _execute_crm_actions_from_response(self, response: str, lead_info: dict, execution_context: dict):
+        """Analisa a resposta da IA e executa ações do CRM conforme necessário"""
+        try:
+            response_text = response.lower()
+            
+            # Verificar se é confirmação de pagamento
+            payment_indicators = [
+                "confirmado", "pagamento", "recebido", "bem-vindo ao sócio",
+                "sócio mais fiel", "r$", "valor", "confirmadíssimo"
+            ]
+            
+            is_payment_confirmation = any(indicator in response_text for indicator in payment_indicators)
+            has_value_mention = "r$" in response_text
+            
+            if is_payment_confirmation and has_value_mention:
+                emoji_logger.system_info("🎯 DETECTADA CONFIRMAÇÃO DE PAGAMENTO - Qualificando lead automaticamente")
+                
+                # Qualificar lead
+                from app.tools.stage_management_tools import StageManagementTools
+                stage_tools = StageManagementTools()
+                
+                result = await stage_tools.move_to_qualificado(
+                    lead_info=lead_info,
+                    payment_value=None,  # Valor será extraído do lead_info se disponível
+                    payment_valid=True,
+                    notes="Qualificado automaticamente - Pagamento confirmado pela IA"
+                )
+                
+                if result.get("success"):
+                    emoji_logger.system_success("✅ Lead qualificado automaticamente após confirmação de pagamento")
+                    # Atualizar lead_info com dados atualizados
+                    lead_info.update(result.get("updated_lead_info", {}))
+                else:
+                    emoji_logger.system_error(f"Erro ao qualificar lead: {result.get('message')}")
+                    
+        except Exception as e:
+            emoji_logger.system_error("CRM Actions", f"Erro ao executar ações do CRM: {e}")
 
     async def _sync_crm_data(self, lead_info: dict, conversation_history: list):
         """Gera e envia atualizações de campos e tags para o CRM."""
