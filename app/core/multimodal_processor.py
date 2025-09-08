@@ -345,7 +345,9 @@ class MultimodalProcessor:
                 
                 # Validar se é um valor válido do programa de sócios do Náutico
                 if analysis["payment_value"]:
-                    analysis["is_valid_nautico_payment"] = self._is_valid_nautico_payment_value(analysis["payment_value"])
+                    is_valid = self._is_valid_nautico_payment_value(analysis["payment_value"])
+                    analysis["is_valid_nautico_payment"] = is_valid
+                    emoji_logger.system_info(f"🔍 VALIDAÇÃO PAGAMENTO: R$ {analysis['payment_value']} = {is_valid}")
         
         return analysis
 

@@ -529,8 +529,13 @@ class AgenticSDRStateless:
                         f"Pagador: {payer_name}, Válido: {is_valid_payment}"
                     )
                     
+                    # Debug adicional
+                    emoji_logger.system_info(f"🔍 DEBUG: is_valid_payment={is_valid_payment}, payment_value={payment_value}")
+                    
                     # Se o comprovante é válido, qualificar automaticamente o lead
+                    emoji_logger.system_info(f"🔍 CONDIÇÃO QUALIFICAÇÃO: is_valid_payment={is_valid_payment}, payment_value={payment_value}")
                     if is_valid_payment and payment_value:
+                        emoji_logger.system_info("🎯 INICIANDO qualificação automática do lead")
                         try:
                             from app.tools.stage_management_tools import StageManagementTools
                             stage_tools = StageManagementTools()
