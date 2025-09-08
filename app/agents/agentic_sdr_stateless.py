@@ -312,9 +312,9 @@ class AgenticSDRStateless:
                 emoji_logger.agentic_start("🆕 Nova conversa - perguntando nome antes de criar lead")
                 
                 response = (
-                    "Opa, tudo joia? Aqui é Marina Campelo, do Náutico! "
+                    "<RESPOSTA_FINAL>Opa, tudo joia? Aqui é Marina Campelo, do Náutico! "
                     "Vi que você respondeu nossa mensagem e mostrou interesse no clube. "
-                    "Que massa! Antes de mais nada, me diz teu nome pra eu te atender direito, visse?"
+                    "Que massa! Antes de mais nada, me diz teu nome pra eu te atender direito, visse?</RESPOSTA_FINAL>"
                 )
                 
                 # Criar lead temporário APENAS para manter estado (sem nome ainda)
@@ -375,17 +375,17 @@ class AgenticSDRStateless:
                     if audio_sent:
                         # Resposta personalizada conectando com áudio
                         response = (
-                            f"Pronto, {extracted_name}! Acabei de te mandar um recado especial "
+                            f"<RESPOSTA_FINAL>Pronto, {extracted_name}! Acabei de te mandar um recado especial "
                             f"do nosso comandante Hélio dos Anjos. Dá uma escutada aí que é importante! "
-                            f"A gente tá numa missão e cada alvirrubro conta muito."
+                            f"A gente tá numa missão e cada alvirrubro conta muito.</RESPOSTA_FINAL>"
                         )
                     else:
                         # Se áudio não foi enviado, dar mensagem apropriada
                         response = (
-                            f"Olá, {extracted_name}! Que bom te conhecer melhor. "
+                            f"<RESPOSTA_FINAL>Olá, {extracted_name}! Que bom te conhecer melhor. "
                             f"Agora que estamos nessa reta final do quadrangular rumo à Série B, "
                             f"é o momento perfeito pra você apoiar o Timba! Vou te explicar como "
-                            f"nosso programa de sócios funciona..."
+                            f"nosso programa de sócios funciona...</RESPOSTA_FINAL>"
                         )
                     
                     # Nota: A movimentação para "Em Qualificação" já foi feita no _handle_initial_trigger_audio
@@ -398,18 +398,18 @@ class AgenticSDRStateless:
                     # Mensagens variadas para diferentes situações
                     if len(message.strip()) < 3:
                         response = (
-                            "Eita, acho que não entendi bem! Preciso do teu nome completo "
-                            "pra te atender direito. Pode me dizer teu nome e sobrenome?"
+                            "<RESPOSTA_FINAL>Eita, acho que não entendi bem! Preciso do teu nome completo "
+                            "pra te atender direito. Pode me dizer teu nome e sobrenome?</RESPOSTA_FINAL>"
                         )
                     elif message.strip().lower() in ['eu', 'me', 'mim']:
                         response = (
-                            "Opa, eu sei que é você mesmo! rsrs Mas preciso saber como te chamar. "
-                            "Qual é o teu nome? Me diz aí!"
+                            "<RESPOSTA_FINAL>Opa, eu sei que é você mesmo! rsrs Mas preciso saber como te chamar. "
+                            "Qual é o teu nome? Me diz aí!</RESPOSTA_FINAL>"
                         )
                     else:
                         response = (
-                            "Oxente, não consegui pegar teu nome direito. "
-                            "Pode me dizer teu nome completo? É só pra eu te tratar do jeito certo, visse?"
+                            "<RESPOSTA_FINAL>Oxente, não consegui pegar teu nome direito. "
+                            "Pode me dizer teu nome completo? É só pra eu te tratar do jeito certo, visse?</RESPOSTA_FINAL>"
                         )
                     return response, lead_info
 
@@ -1004,7 +1004,11 @@ class AgenticSDRStateless:
         day_of_week_pt = days_map[now.weekday()]
         
         date_context = f"<contexto_temporal>\nA data e hora atuais são: {current_date_str} ({day_of_week_pt}).\n</contexto_temporal>\n\n"
-        system_prompt_with_context = date_context + system_prompt
+        
+        # Adicionar instrução crítica sobre formatação da resposta
+        formatting_instruction = "\n\n<INSTRUÇÃO_CRÍTICA>\nSua resposta final DEVE estar sempre dentro da tag <RESPOSTA_FINAL>. \nExemplo: <RESPOSTA_FINAL>Sua mensagem aqui</RESPOSTA_FINAL>\n</INSTRUÇÃO_CRÍTICA>\n"
+        
+        system_prompt_with_context = date_context + system_prompt + formatting_instruction
 
         # 2. Prepara as mensagens para o modelo.
         if is_followup:
