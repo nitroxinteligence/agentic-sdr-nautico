@@ -156,6 +156,22 @@ class Settings(BaseSettings):
     weekend_support: bool = Field(
         default=False, env="WEEKEND_SUPPORT"
     )
+    followup_delay_30min: int = Field(
+        default=30, env="FOLLOWUP_DELAY_30MIN"
+    )
+    followup_delay_4hours: int = Field(
+        default=240, env="FOLLOWUP_DELAY_4HOURS"
+    )
+    followup_delay_24hours: int = Field(
+        default=1440, env="FOLLOWUP_DELAY_24HOURS"
+    )
+    followup_delay_48hours: int = Field(
+        default=2880, env="FOLLOWUP_DELAY_48HOURS"
+    )
+    max_follow_up_attempts: int = Field(
+        default=4, env="MAX_FOLLOW_UP_ATTEMPTS", 
+        description="Máximo de follow-ups por semana para um lead"
+    )
     timezone: str = Field(default="America/Sao_Paulo", env="TIMEZONE")
     debug: bool = Field(default=False, env="DEBUG")
     debug_kommo: bool = Field(default=False, env="DEBUG_KOMMO")
