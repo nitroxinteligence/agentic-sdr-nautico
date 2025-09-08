@@ -316,13 +316,19 @@ class SupabaseClient:
     async def get_pending_follow_ups(self) -> List[Dict[str, Any]]:
         """Retorna follow-ups pendentes"""
         try:
-            now = datetime.now().isoformat()
+            # Usar UTC para consistência com a criação de follow-ups
+            from datetime import timezone
+            now = datetime.now(timezone.utc).isoformat()
 
             result = self.client.table('follow_ups').select("*").eq(
                 'status', 'pending'
             ).lte('scheduled_at', now).order('priority', desc=True).execute()
 
-            return result.data or []
+            follow_ups = result.data or []
+            if follow_ups:
+                logger.info(f"🔍 FOLLOW-UPS PENDENTES: {len(follow_ups)} encontrados. Primeiro agendado para: {follow_ups[0].get('scheduled_at') if follow_ups else 'N/A'}")
+            
+            return follow_ups
 
         except Exception as e:
             logger.error(f"Erro ao buscar follow-ups: {str(e)}")
@@ -565,12 +571,12 @@ class SupabaseClient:
             self, lead_id: str, since: datetime
     ) -> int:
         """
-        Conta o número de follow-ups realmente TENTADOS (executados ou falhos)
-        para um lead recentemente.
+        Conta o número de follow-ups realmente EXECUTADOS (não apenas criados)
+        para um lead recentemente, baseado em quando foram executados, não criados.
         """
         try:
-            # Status que não devem contar como uma tentativa.
-            non_attempt_statuses = ['pending', 'queued', 'cancelled']
+            # Contar apenas follow-ups que foram realmente executados (status executed ou failed)
+            attempt_statuses = ['executed', 'failed']
 
             result = await asyncio.to_thread(
                 self.client.table('follow_ups').select(
@@ -578,9 +584,9 @@ class SupabaseClient:
                 ).eq(
                     'lead_id', lead_id
                 ).gte(
-                    'created_at', since.isoformat()
-                ).not_.in_(
-                    'status', non_attempt_statuses
+                    'updated_at', since.isoformat()  # Usar updated_at em vez de created_at
+                ).in_(
+                    'status', attempt_statuses  # Apenas executed e failed
                 ).execute
             )
             

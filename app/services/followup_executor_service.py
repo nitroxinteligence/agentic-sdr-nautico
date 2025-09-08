@@ -50,14 +50,27 @@ class FollowUpSchedulerService:
         """
         Busca follow-ups pendentes e os enfileira no Redis.
         """
+        # Lock global para evitar múltiplas instâncias processando simultaneamente
+        scheduler_lock = "followup_scheduler_lock"
+        if not await self.redis.acquire_lock(scheduler_lock, ttl=120):  # 2 minutos
+            logger.debug("Scheduler já em execução em outra instância - pulando")
+            return
+            
         try:
             now = datetime.now(timezone.utc)
             pending_followups = await self.db.get_pending_follow_ups()
             if not pending_followups:
                 return
             logger.info(
-                f"📋 {len(pending_followups)} follow-ups pendentes encontrados."
+                f"📋 {len(pending_followups)} follow-ups pendentes encontrados. Tempo atual: {now.isoformat()}"
             )
+            
+            # Debug: listar os follow-ups encontrados com seus horários
+            for i, followup in enumerate(pending_followups[:5]):  # Mostrar apenas os 5 primeiros
+                scheduled_at = followup.get('scheduled_at', 'N/A')
+                followup_id = followup.get('id', 'N/A')
+                lead_id = followup.get('lead_id', 'N/A')
+                logger.info(f"🔍 Follow-up {i+1}: ID={followup_id}, Lead={lead_id}, Agendado={scheduled_at}")
             for followup in pending_followups:
                 lead_id = followup.get('lead_id')
                 followup_id = followup.get('id')
@@ -71,19 +84,24 @@ class FollowUpSchedulerService:
                 await self.redis.set(recently_checked_key, "1", ttl=300)
                 
                 if lead_id:
-                    one_week_ago = now - timedelta(days=7)
+                    # Contar apenas follow-ups EXECUTADOS nas últimas 48 horas (não apenas criados)
+                    two_days_ago = now - timedelta(hours=48)
                     count = await self.db.get_recent_followup_count(
-                        lead_id, one_week_ago
+                        lead_id, two_days_ago
                     )
+                    logger.info(f"🔢 Lead {lead_id}: {count} follow-ups executados nas últimas 48h (limite: {settings.max_follow_up_attempts})")
+                    
                     if count >= settings.max_follow_up_attempts:
                         followup_type = followup.get('type', 'UNKNOWN')
                         # Só log uma vez por follow-up específico, não spam
                         cancelled_key = f"followup_cancelled:{followup['id']}"
                         if not await self.redis.get(cancelled_key):
                             emoji_logger.system_warning(
-                                f"🚫 Limite de follow-ups atingido para o lead {lead_id}. Tipo: {followup_type}"
+                                f"🚫 Limite de follow-ups atingido para o lead {lead_id}. Tipo: {followup_type}, Count: {count}"
                             )
                             await self.redis.set(cancelled_key, "1", ttl=86400)  # 24h
+                        else:
+                            logger.debug(f"🔇 Follow-up {followup['id']} já teve warning de cancelamento logged")
                         
                         await self.db.update_follow_up_status(
                             followup['id'], 'cancelled'
@@ -107,7 +125,7 @@ class FollowUpSchedulerService:
                             followup['id'], 'queued'
                         )
                         emoji_logger.followup_event(
-                            f"✅ Follow-up {followup['id']} enfileirado."
+                            f"✅ Follow-up {followup['id']} enfileirado para lead {followup['lead_id']} (agendado: {followup.get('scheduled_at')})"
                         )
                     except Exception as e:
                         logger.error(

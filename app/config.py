@@ -185,7 +185,6 @@ class Settings(BaseSettings):
     max_message_length: int = Field(default=4096)
     webhook_timeout: int = Field(default=30)
     typing_simulation_delay: float = Field(default=2.0)
-    max_follow_up_attempts: int = Field(default=3)
     enable_qualification_agent: bool = Field(
         default=True, env="ENABLE_QUALIFICATION_AGENT"
     )
@@ -228,12 +227,7 @@ class Settings(BaseSettings):
         default="https://xxxx.supabase.co/storage/v1/object/public/documents/AUDIO-ENVIAR-NO-INICIO-DA-CONVERSA-2%20(1).mp3", 
         env="INITIAL_AUDIO_URL"
     )
-    
-    # Configurações de Follow-up (conforme novo prompt)
-    followup_delay_30min: int = Field(default=30, env="FOLLOWUP_DELAY_30MIN")
-    followup_delay_4hours: int = Field(default=240, env="FOLLOWUP_DELAY_4HOURS")  # 4h em minutos
-    followup_delay_24hours: int = Field(default=1440, env="FOLLOWUP_DELAY_24HOURS")  # 24h em minutos
-    followup_delay_48hours: int = Field(default=2880, env="FOLLOWUP_DELAY_48HOURS")  # 48h em minutos
+
     response_delay_min: float = Field(
         default=1.5, env="RESPONSE_DELAY_MIN"
     )

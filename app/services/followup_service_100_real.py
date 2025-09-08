@@ -79,7 +79,9 @@ class FollowUpServiceReal:
             await self.initialize()
         try:
             # Calcular horário inicial
-            initial_scheduled_time = datetime.now(pytz.utc) + timedelta(hours=delay_hours)
+            current_time = datetime.now(pytz.utc)
+            initial_scheduled_time = current_time + timedelta(hours=delay_hours)
+            emoji_logger.system_info(f"🕐 AGENDANDO FOLLOW-UP: delay_hours={delay_hours}, tempo_atual={current_time.isoformat()}, agendado_para={initial_scheduled_time.isoformat()}, diferenca_horas={(initial_scheduled_time - current_time).total_seconds() / 3600}")
             
             # Validar se está em horário comercial (conforme novo prompt)
             if hasattr(settings, 'is_business_hours') and callable(settings.is_business_hours):
