@@ -358,7 +358,7 @@ class SupabaseClient:
                 update_data['executed_at'] = executed_at.isoformat()
                 
             if reason:
-                update_data['cancellation_reason'] = reason
+                update_data['error_reason'] = reason
 
             result = self.client.table('follow_ups').update(update_data).eq(
                 'id', follow_up_id
