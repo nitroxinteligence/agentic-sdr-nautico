@@ -9,7 +9,7 @@ import time
 import hashlib
 import hmac
 from typing import Optional, Dict, Any, List
-from urllib.parse import quote
+from urllib.parse import quote, quote_plus
 from loguru import logger
 from app.utils.logger import emoji_logger
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -112,7 +112,7 @@ class EvolutionAPIClient:
             await self._check_circuit_breaker()
             response = await self._make_request(
                 "get",
-                f"/instance/connectionState/{self.instance_name}",
+                f"/instance/connectionState/{self._encode_instance_name()}",
                 timeout=5.0
             )
             if response.status_code == 200:
@@ -200,7 +200,7 @@ class EvolutionAPIClient:
         """Obtém informações da instância"""
         try:
             response = await self._make_request(
-                "get", f"/instance/connectionState/{self.instance_name}"
+                "get", f"/instance/connectionState/{self._encode_instance_name()}"
             )
             return response.json()
         except Exception as e:
@@ -214,7 +214,7 @@ class EvolutionAPIClient:
         """Conecta a instância gerando QR Code"""
         try:
             response = await self._make_request(
-                "get", f"/instance/connect/{self.instance_name}"
+                "get", f"/instance/connect/{self._encode_instance_name()}"
             )
             data = response.json()
             if "qrcode" in data:
@@ -229,7 +229,7 @@ class EvolutionAPIClient:
         """Desconecta a instância"""
         try:
             response = await self._make_request(
-                "delete", f"/instance/logout/{self.instance_name}"
+                "delete", f"/instance/logout/{self._encode_instance_name()}"
             )
             return response.json()
         except Exception as e:
@@ -278,7 +278,7 @@ class EvolutionAPIClient:
                 "delay": int(settings.delay_between_messages * 1000)
             }
             response = await self._make_request(
-                "post", f"/message/sendText/{self.instance_name}", json=payload
+                "post", f"/message/sendText/{self._encode_instance_name()}", json=payload
             )
             if response.status_code not in [200, 201]:
                 error_text = response.text
@@ -375,7 +375,7 @@ class EvolutionAPIClient:
             # Endpoint corrigido para 'sendPresence'
             await self._make_request(
                 "post",
-                f"/chat/sendPresence/{self.instance_name}",
+                f"/chat/sendPresence/{self._encode_instance_name()}",
                 json=payload
             )
             emoji_logger.system_info(
@@ -402,7 +402,7 @@ class EvolutionAPIClient:
             }
             response = await self._make_request(
                 "post",
-                f"/message/sendReaction/{self.instance_name}",
+                f"/message/sendReaction/{self._encode_instance_name()}",
                 json=payload
             )
             if response.status_code not in [200, 201]:
@@ -471,7 +471,7 @@ class EvolutionAPIClient:
                 }
             }
             response = await self._make_request(
-                "post", f"/message/sendText/{self.instance_name}", json=payload
+                "post", f"/message/sendText/{self._encode_instance_name()}", json=payload
             )
             if response.status_code not in [200, 201]:
                 error_text = response.text
@@ -523,7 +523,7 @@ class EvolutionAPIClient:
                 payload["caption"] = caption
             response = await self._make_request(
                 "post",
-                f"/message/sendMedia/{self.instance_name}",
+                f"/message/sendMedia/{self._encode_instance_name()}",
                 json=payload
             )
             emoji_logger.system_info(
@@ -558,7 +558,7 @@ class EvolutionAPIClient:
                 payload["caption"] = caption
             response = await self._make_request(
                 "post",
-                f"/message/sendMedia/{self.instance_name}",
+                f"/message/sendMedia/{self._encode_instance_name()}",
                 json=payload
             )
             emoji_logger.system_info(
@@ -590,7 +590,7 @@ class EvolutionAPIClient:
             }
             response = await self._make_request(
                 "post",
-                f"/message/sendMedia/{self.instance_name}",
+                f"/message/sendMedia/{self._encode_instance_name()}",
                 json=payload
             )
             emoji_logger.system_info(
@@ -605,7 +605,7 @@ class EvolutionAPIClient:
         """Obtém todos os chats"""
         try:
             response = await self._make_request(
-                "get", f"/chat/findChats/{self.instance_name}"
+                "get", f"/chat/findChats/{self._encode_instance_name()}"
             )
             return response.json()
         except Exception as e:
@@ -624,7 +624,7 @@ class EvolutionAPIClient:
             phone = self._format_phone(phone)
             response = await self._make_request(
                 "post",
-                f"/chat/findMessages/{self.instance_name}",
+                f"/chat/findMessages/{self._encode_instance_name()}",
                 json={
                     "where": {
                         "remoteJid": f"{phone}@s.whatsapp.net"
@@ -653,7 +653,7 @@ class EvolutionAPIClient:
             }
             await self._make_request(
                 "post",
-                f"/chat/markMessageAsRead/{self.instance_name}",
+                f"/chat/markMessageAsRead/{self._encode_instance_name()}",
                 json=payload
             )
             logger.debug(f"Mensagem {message_id} marcada como lida")
@@ -668,7 +668,7 @@ class EvolutionAPIClient:
             phone = self._format_phone(phone)
             response = await self._make_request(
                 "post",
-                f"/chat/fetchProfilePictureUrl/{self.instance_name}",
+                f"/chat/fetchProfilePictureUrl/{self._encode_instance_name()}",
                 json={"number": phone}
             )
             data = response.json()
@@ -687,7 +687,7 @@ class EvolutionAPIClient:
             phone = self._format_phone(phone)
             response = await self._make_request(
                 "post",
-                f"/chat/fetchBusinessProfile/{self.instance_name}",
+                f"/chat/fetchBusinessProfile/{self._encode_instance_name()}",
                 json={"number": phone}
             )
             return response.json()
@@ -719,7 +719,7 @@ class EvolutionAPIClient:
                 ]
             }
             response = await self._make_request(
-                "post", f"/webhook/set/{self.instance_name}", json=payload
+                "post", f"/webhook/set/{self._encode_instance_name()}", json=payload
             )
             logger.info(f"Webhook configurado: {webhook_url}")
             return response.json()
@@ -731,7 +731,7 @@ class EvolutionAPIClient:
         """Obtém configuração atual do webhook"""
         try:
             response = await self._make_request(
-                "get", f"/webhook/get/{self.instance_name}"
+                "get", f"/webhook/get/{self._encode_instance_name()}"
             )
             return response.json()
         except Exception as e:
@@ -749,7 +749,7 @@ class EvolutionAPIClient:
         try:
             payload = {"number": group_id, "text": message}
             response = await self._make_request(
-                "post", f"/message/sendText/{self.instance_name}", json=payload
+                "post", f"/message/sendText/{self._encode_instance_name()}", json=payload
             )
             logger.info(f"Mensagem enviada para grupo {group_id}")
             return response.json()
@@ -764,7 +764,7 @@ class EvolutionAPIClient:
         try:
             response = await self._make_request(
                 "post",
-                f"/group/findGroupByJid/{self.instance_name}",
+                f"/group/findGroupByJid/{self._encode_instance_name()}",
                 json={"groupJid": group_id}
             )
             return response.json()
@@ -794,7 +794,7 @@ class EvolutionAPIClient:
             
             response = await self._make_request(
                 "post",
-                f"/chat/getBase64FromMediaMessage/{self.instance_name}",
+                f"/chat/getBase64FromMediaMessage/{self._encode_instance_name()}",
                 json=payload
             )
             
@@ -854,6 +854,12 @@ class EvolutionAPIClient:
         if not phone.startswith('55'):
             phone = '55' + phone
         return phone
+
+    def _encode_instance_name(self) -> str:
+        """
+        Codifica o nome da instância para uso seguro em URLs
+        """
+        return quote_plus(self.instance_name)
 
     def decrypt_whatsapp_media(
         self,
@@ -1006,7 +1012,7 @@ class EvolutionAPIClient:
             phone = self._format_phone(phone)
             response = await self._make_request(
                 "post",
-                f"/chat/checkNumber/{self.instance_name}",
+                f"/chat/checkNumber/{self._encode_instance_name()}",
                 json={"number": phone}
             )
             data = response.json()
