@@ -24,10 +24,30 @@ class StageManagementTools:
             "atendimento_humano": settings.kommo_human_handoff_stage_id
         }
 
+    async def _validate_and_clean_kommo_lead(self, kommo_lead_id: str, supabase_lead_id: str = None) -> bool:
+        """
+        Valida se o lead existe no Kommo. Se não existir, limpa o kommo_lead_id do Supabase.
+        Retorna True se o lead existir, False caso contrário.
+        """
+        if not self.crm_service or not kommo_lead_id:
+            return False
+            
+        lead_exists = await self.crm_service.get_lead_by_id(str(kommo_lead_id))
+        
+        if not lead_exists:
+            emoji_logger.service_warning(f"Lead {kommo_lead_id} não existe mais no Kommo - limpando kommo_lead_id")
+            # Limpar o kommo_lead_id do Supabase já que não existe mais no Kommo
+            if supabase_lead_id:
+                from app.integrations.supabase_client import supabase_client
+                await supabase_client.update_lead(supabase_lead_id, {"kommo_lead_id": None})
+            return False
+            
+        return True
+
     async def move_to_em_qualificacao(
         self, 
         lead_info: Dict[str, Any], 
-        notes: str = "Lead iniciou qualificação - Marina entrando na conversa"
+        notes: str = "Lead iniciou qualificação - Laura entrando na conversa"
     ) -> Dict[str, Any]:
         """
         Move lead para estágio "Em Qualificação"
@@ -45,17 +65,18 @@ class StageManagementTools:
 
             # Atualizar no CRM se disponível e tiver kommo_lead_id
             if self.crm_service and kommo_lead_id:
-                result = await self.crm_service.update_lead_stage(
-                    lead_id=str(kommo_lead_id),
-                    stage_name="em_qualificacao",
-                    notes=notes,
-                    phone_number=phone
-                )
-                
-                if result.get("success"):
-                    emoji_logger.service_info(f"✅ Lead {kommo_lead_id} movido para 'Em Qualificação' no CRM")
-                else:
-                    emoji_logger.service_warning(f"Falha ao mover lead {kommo_lead_id} no CRM: {result.get('message')}")
+                if await self._validate_and_clean_kommo_lead(kommo_lead_id, supabase_lead_id):
+                    result = await self.crm_service.update_lead_stage(
+                        lead_id=str(kommo_lead_id),
+                        stage_name="em_qualificacao",
+                        notes=notes,
+                        phone_number=phone
+                    )
+                    
+                    if result.get("success"):
+                        emoji_logger.service_info(f"✅ Lead {kommo_lead_id} movido para 'Em Qualificação' no CRM")
+                    else:
+                        emoji_logger.service_warning(f"Falha ao mover lead {kommo_lead_id} no CRM: {result.get('message')}")
             elif self.crm_service and not kommo_lead_id:
                 emoji_logger.service_warning("Lead não tem kommo_lead_id - pulando atualização no CRM")
 
@@ -113,17 +134,18 @@ class StageManagementTools:
             
             # Atualizar no CRM se disponível e tiver kommo_lead_id
             if self.crm_service and kommo_lead_id:
-                result = await self.crm_service.update_lead_stage(
-                    lead_id=str(kommo_lead_id),
-                    stage_name="qualificado", 
-                    notes=notes,
-                    phone_number=phone
-                )
-                
-                if result.get("success"):
-                    emoji_logger.service_info(f"✅ Lead {kommo_lead_id} QUALIFICADO no CRM")
-                else:
-                    emoji_logger.service_warning(f"Falha ao qualificar lead {kommo_lead_id} no CRM: {result.get('message')}")
+                if await self._validate_and_clean_kommo_lead(kommo_lead_id, supabase_lead_id):
+                    result = await self.crm_service.update_lead_stage(
+                        lead_id=str(kommo_lead_id),
+                        stage_name="qualificado", 
+                        notes=notes,
+                        phone_number=phone
+                    )
+                    
+                    if result.get("success"):
+                        emoji_logger.service_info(f"✅ Lead {kommo_lead_id} QUALIFICADO no CRM")
+                    else:
+                        emoji_logger.service_warning(f"Falha ao qualificar lead {kommo_lead_id} no CRM: {result.get('message')}")
             elif self.crm_service and not kommo_lead_id:
                 emoji_logger.service_warning("Lead não tem kommo_lead_id - pulando atualização no CRM")
 
@@ -197,17 +219,18 @@ class StageManagementTools:
             
             # Atualizar no CRM se disponível e tiver kommo_lead_id
             if self.crm_service and kommo_lead_id:
-                result = await self.crm_service.update_lead_stage(
-                    lead_id=str(kommo_lead_id),
-                    stage_name="desqualificado",
-                    notes=full_notes,
-                    phone_number=phone
-                )
-                
-                if result.get("success"):
-                    emoji_logger.service_info(f"❌ Lead {kommo_lead_id} DESQUALIFICADO no CRM")
-                else:
-                    emoji_logger.service_warning(f"Falha ao desqualificar lead {kommo_lead_id} no CRM: {result.get('message')}")
+                if await self._validate_and_clean_kommo_lead(kommo_lead_id, supabase_lead_id):
+                    result = await self.crm_service.update_lead_stage(
+                        lead_id=str(kommo_lead_id),
+                        stage_name="desqualificado",
+                        notes=full_notes,
+                        phone_number=phone
+                    )
+                    
+                    if result.get("success"):
+                        emoji_logger.service_info(f"❌ Lead {kommo_lead_id} DESQUALIFICADO no CRM")
+                    else:
+                        emoji_logger.service_warning(f"Falha ao desqualificar lead {kommo_lead_id} no CRM: {result.get('message')}")
             elif self.crm_service and not kommo_lead_id:
                 emoji_logger.service_warning("Lead não tem kommo_lead_id - pulando atualização no CRM")
 
@@ -273,17 +296,18 @@ class StageManagementTools:
             
             # Atualizar no CRM se disponível e tiver kommo_lead_id
             if self.crm_service and kommo_lead_id:
-                result = await self.crm_service.update_lead_stage(
-                    lead_id=str(kommo_lead_id),
-                    stage_name="atendimento_humano",
-                    notes=full_notes, 
-                    phone_number=phone
-                )
-                
-                if result.get("success"):
-                    emoji_logger.service_info(f"👤 Lead {kommo_lead_id} encaminhado para ATENDIMENTO HUMANO no CRM")
-                else:
-                    emoji_logger.service_warning(f"Falha ao encaminhar lead {kommo_lead_id} no CRM: {result.get('message')}")
+                if await self._validate_and_clean_kommo_lead(kommo_lead_id, supabase_lead_id):
+                    result = await self.crm_service.update_lead_stage(
+                        lead_id=str(kommo_lead_id),
+                        stage_name="atendimento_humano",
+                        notes=full_notes, 
+                        phone_number=phone
+                    )
+                    
+                    if result.get("success"):
+                        emoji_logger.service_info(f"👤 Lead {kommo_lead_id} encaminhado para ATENDIMENTO HUMANO no CRM")
+                    else:
+                        emoji_logger.service_warning(f"Falha ao encaminhar lead {kommo_lead_id} no CRM: {result.get('message')}")
             elif self.crm_service and not kommo_lead_id:
                 emoji_logger.service_warning("Lead não tem kommo_lead_id - pulando atualização no CRM")
 
@@ -349,7 +373,7 @@ class StageManagementTools:
             },
             "em_qualificacao": {
                 "name": "Em Qualificação", 
-                "description": "Marina iniciou conversa e está qualificando o lead",
+                "description": "Laura iniciou conversa e está qualificando o lead",
                 "next_stages": ["qualificado", "desqualificado", "atendimento_humano"]
             },
             "qualificado": {

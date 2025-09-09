@@ -580,7 +580,16 @@ async def create_agent_with_context(
         if lead_data and lead_data.get("kommo_lead_id") and settings.enable_kommo_crm:
             crm_service = CRMServiceReal()
             await crm_service.initialize() # Garante que o serviço esteja inicializado
-            kommo_lead = await crm_service.get_lead_by_id(str(lead_data["kommo_lead_id"]))
+            
+            # Verificar se o lead ainda existe no Kommo antes de usar
+            kommo_lead_id = str(lead_data["kommo_lead_id"])
+            kommo_lead = await crm_service.get_lead_by_id(kommo_lead_id)
+            
+            # Se o lead não existir mais no Kommo, limpar o kommo_lead_id do Supabase
+            if not kommo_lead:
+                emoji_logger.service_warning(f"Lead {kommo_lead_id} não encontrado no Kommo - limpando kommo_lead_id")
+                await supabase_client.update_lead(lead_data["id"], {"kommo_lead_id": None})
+                lead_data["kommo_lead_id"] = None
 
             if kommo_lead:
                 current_status_id = kommo_lead.get('status_id')

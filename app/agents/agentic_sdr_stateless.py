@@ -312,7 +312,7 @@ class AgenticSDRStateless:
                 emoji_logger.agentic_start("🆕 Nova conversa - perguntando nome antes de criar lead")
                 
                 response = (
-                    "Olá! Aqui é Marina Campelo, do Náutico! "
+                    "Olá! Aqui é Laura, do Náutico! "
                     "Vi que você demonstrou interesse no clube. "
                     "Qual é seu nome para eu te atender melhor?"
                 )
@@ -1190,7 +1190,7 @@ class AgenticSDRStateless:
                     # Mover lead para "Em Qualificação" conforme prompt
                     stage_result = await self.stage_tools.move_to_em_qualificacao(
                         lead_info,
-                        notes="Áudio inicial enviado - Marina iniciando qualificação"
+                        notes="Áudio inicial enviado - Laura iniciando qualificação"
                     )
                     
                     if stage_result.get("success"):

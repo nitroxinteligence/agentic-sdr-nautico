@@ -20,7 +20,7 @@ class ResponseFormatter:
         Retorna texto limpo e direto
         """
         if not response:
-            return "Olá! Aqui é Marina Campelo, do Náutico! Como posso te ajudar?"
+            return "Olá! Aqui é Laura, do Náutico! Como posso te ajudar?"
         
         # CRÍTICO: Detecta se a resposta contém uma tool e NÃO a processa
         tool_pattern = r'\[\w+[:\.].*?\]'
@@ -84,7 +84,7 @@ class ResponseFormatter:
         Retorna uma resposta segura baseada no contexto
         """
         fallbacks = {
-            "início": "Olá! Aqui é Marina Campelo, do Náutico! Qual é seu nome para eu te atender melhor?",
+            "início": "Olá! Aqui é Laura, do Náutico! Qual é seu nome para eu te atender melhor?",
             "nome_coletado": "Perfeito! Hoje no programa Sócio Mais Fiel do Nordeste temos vários planos incríveis. Há quanto tempo você torce para o Náutico?",
             "valor_coletado": "Excelente! Vejo que você tem paixão pelo Náutico. Vou te mostrar como fazer parte da nossa família de sócios!",
             "default": "Como posso ajudar você a apoiar o Náutico na campanha de acesso à Série B?"

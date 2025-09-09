@@ -338,6 +338,17 @@ class CRMServiceReal:
                         lead_id = result.get(
                             "_embedded", {}
                         ).get("leads", [{}])[0].get("id")
+                        
+                        # Validar se o lead_id é válido
+                        if not lead_id or not isinstance(lead_id, int):
+                            emoji_logger.service_error(f"Lead ID inválido retornado pela API do Kommo: {lead_id}")
+                            emoji_logger.system_debug(f"Resposta completa da API: {result}")
+                            raise KommoAPIException(
+                                f"Lead ID inválido retornado pela API: {lead_id}",
+                                error_code="KOMMO_INVALID_LEAD_ID",
+                                details={"response": result, "lead_id": lead_id}
+                            )
+                        
                         emoji_logger.team_crm(
                             f"✅ Lead CRIADO no Kommo: {kommo_lead['name']} - "
                             f"ID: {lead_id}"
