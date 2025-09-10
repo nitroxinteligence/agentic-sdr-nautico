@@ -93,11 +93,24 @@ class FollowUpWorker:
                     f"✅ Follow-up {followup_id} executado e enviado com sucesso."
                 )
             else:
-                await self.db.update_follow_up_status(followup_id, 'failed')
-                emoji_logger.system_error(
-                    "FollowUp Worker",
-                    f"Falha ao enviar mensagem para o follow-up {followup_id}."
-                )
+                # Verificar se é erro de número inexistente
+                if send_result and send_result.get("error") == "whatsapp_number_not_found":
+                    invalid_number = send_result.get("number", actual_task["phone_number"])
+                    error_message = f"Número WhatsApp inexistente: {invalid_number}"
+                    await self.db.update_follow_up_status(
+                        followup_id, 
+                        'cancelled', 
+                        reason=error_message
+                    )
+                    emoji_logger.system_warning(
+                        f"⚠️ Follow-up {followup_id} cancelado - {error_message}"
+                    )
+                else:
+                    await self.db.update_follow_up_status(followup_id, 'failed')
+                    emoji_logger.system_error(
+                        "FollowUp Worker",
+                        f"Falha ao enviar mensagem para o follow-up {followup_id}."
+                    )
 
         except Exception as e:
             emoji_logger.system_error(

@@ -290,6 +290,28 @@ class EvolutionAPIClient:
             )
             if response.status_code not in [200, 201]:
                 error_text = response.text
+                
+                # Tratar especificamente erros 400 de números inexistentes
+                if response.status_code == 400:
+                    try:
+                        error_data = response.json()
+                        if "message" in error_data and isinstance(error_data["message"], list):
+                            for msg in error_data["message"]:
+                                if isinstance(msg, dict) and msg.get("exists") == False:
+                                    invalid_number = msg.get("number", phone)
+                                    emoji_logger.system_warning(
+                                        f"Número WhatsApp não existe: {invalid_number} - Não enviando mensagem"
+                                    )
+                                    return {
+                                        "success": False, 
+                                        "error": "whatsapp_number_not_found",
+                                        "number": invalid_number,
+                                        "message": f"Número {invalid_number} não existe no WhatsApp"
+                                    }
+                    except (ValueError, KeyError):
+                        # Se não conseguir parsear, continua com o tratamento padrão
+                        pass
+                
                 emoji_logger.system_error(
                     "Evolution API",
                     f"Evolution API retornou erro {response.status_code}: "
@@ -316,6 +338,12 @@ class EvolutionAPIClient:
         except Exception as e:
             emoji_logger.system_error("Evolution API", f"Erro ao enviar mensagem: {e}")
             raise
+
+    async def send_message(self, phone: str, message: str) -> Dict[str, Any]:
+        """
+        Alias para send_text_message para compatibilidade com service wrapper
+        """
+        return await self.send_text_message(phone, message)
 
     def _calculate_humanized_typing_duration(
             self, message_length: int
@@ -610,10 +638,44 @@ class EvolutionAPIClient:
                 f"/message/sendMedia/{self._encode_instance_name()}",
                 json=payload
             )
+            
+            if response.status_code not in [200, 201]:
+                error_text = response.text
+                
+                # Tratar especificamente erros 400 de números inexistentes
+                if response.status_code == 400:
+                    try:
+                        error_data = response.json()
+                        if "message" in error_data and isinstance(error_data["message"], list):
+                            for msg in error_data["message"]:
+                                if isinstance(msg, dict) and msg.get("exists") == False:
+                                    invalid_number = msg.get("number", phone)
+                                    emoji_logger.system_warning(
+                                        f"Número WhatsApp não existe: {invalid_number} - Não enviando áudio"
+                                    )
+                                    return {
+                                        "success": False, 
+                                        "error": "whatsapp_number_not_found",
+                                        "number": invalid_number,
+                                        "message": f"Número {invalid_number} não existe no WhatsApp"
+                                    }
+                    except (ValueError, KeyError):
+                        # Se não conseguir parsear, continua com o tratamento padrão
+                        pass
+                
+                emoji_logger.system_error(
+                    "Evolution API",
+                    f"Evolution API retornou erro {response.status_code}: {error_text}"
+                )
+                raise Exception(
+                    f"Erro ao enviar áudio: Status {response.status_code} - {error_text}"
+                )
+            
+            result = response.json()
             emoji_logger.system_info(
                 f"Evolution API - Áudio enviado para {phone}"
             )
-            return response.json()
+            return result
         except Exception as e:
             emoji_logger.system_error("Evolution API", f"Erro ao enviar áudio: {e}")
             raise
