@@ -7,6 +7,37 @@ from loguru import logger
 from app.utils.logger import emoji_logger
 
 
+def validate_phone_number(phone: str) -> bool:
+    """
+    Valida se um número de telefone é válido
+    - Deve ter entre 10 e 15 dígitos
+    - Deve conter apenas números
+    - Não deve ser números obviamente inválidos (muito longos ou curtos demais)
+    """
+    if not phone:
+        return False
+    
+    # Remover caracteres não numéricos para validação
+    digits_only = ''.join(filter(str.isdigit, phone))
+    
+    # Validações básicas
+    if len(digits_only) < 10 or len(digits_only) > 15:
+        emoji_logger.system_warning(f"Message Buffer - Número inválido (tamanho): '{phone}' -> {len(digits_only)} dígitos")
+        return False
+    
+    # Números obviamente inválidos (sequências muito longas de mesmo dígito)
+    if len(set(digits_only)) < 3:  # Menos de 3 dígitos únicos
+        emoji_logger.system_warning(f"Message Buffer - Número inválido (pouca variação): '{phone}'")
+        return False
+    
+    # Números brasileiros válidos devem começar com 55 ou ter pelo menos 10 dígitos locais
+    if digits_only.startswith('55') and len(digits_only) < 12:
+        emoji_logger.system_warning(f"Message Buffer - Número brasileiro inválido: '{phone}' -> {len(digits_only)} dígitos")
+        return False
+    
+    return True
+
+
 class MessageBuffer:
     """
     Buffer inteligente - processa imediatamente se agente está livre,
@@ -30,8 +61,15 @@ class MessageBuffer:
             self, phone: str, content: str, message_data: Dict, media_data: Optional[Dict] = None
     ) -> None:
         """
-        Adiciona mensagem ao buffer
+        Adiciona mensagem ao buffer com validação de número
         """
+        # Validar número de telefone antes de processar
+        if not validate_phone_number(phone):
+            emoji_logger.system_error(
+                f"Message Buffer - Número de telefone inválido ignorado: '{phone}'"
+            )
+            return
+        
         if phone not in self.queues:
             self.queues[phone] = asyncio.Queue(maxsize=self.max_size)
         
