@@ -857,9 +857,9 @@ class EvolutionAPIClient:
 
     def _encode_instance_name(self) -> str:
         """
-        Codifica o nome da instância para uso seguro em URLs
+        Retorna o nome da instância sem codificação para esta Evolution API
         """
-        return quote_plus(self.instance_name)
+        return self.instance_name
 
     def decrypt_whatsapp_media(
         self,
