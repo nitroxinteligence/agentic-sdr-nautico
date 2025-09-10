@@ -415,19 +415,24 @@ class AgenticSDRStateless:
                     
                     # Só enviar resposta se áudio foi enviado com sucesso
                     if audio_sent:
-                        # Resposta personalizada conectando com áudio
+                        # Resposta personalizada conectando com áudio + início do pitch de vendas
                         response = (
                             f"{extracted_name}, enviei um áudio especial do nosso comandante "
                             f"Hélio dos Anjos! Estamos na campanha de acesso à Série B e "
-                            f"cada torcedor como você pode fazer a diferença."
+                            f"cada torcedor como você pode fazer a diferença.\n\n"
+                            f"Torcedor, o Náutico precisa de você. Estamos no quadrangular "
+                            f"pelo acesso à Série B. Seja sócio hoje e faça parte dessa volta histórica. "
+                            f"Quer saber quais são os planos disponíveis ou já recebeu o link para garantir o seu?"
                         )
                     else:
-                        # Se áudio não foi enviado, dar mensagem apropriada
+                        # Se áudio não foi enviado, dar mensagem apropriada com pitch
                         response = (
                             f"Olá, {extracted_name}! Que bom te conhecer melhor. "
                             f"Estamos na campanha de acesso à Série B e é o momento perfeito "
-                            f"para você apoiar o Náutico! Vou te explicar como "
-                            f"nosso programa de sócios funciona..."
+                            f"para você apoiar o Náutico!\n\n"
+                            f"Torcedor, o Náutico precisa de você. Estamos no quadrangular "
+                            f"pelo acesso à Série B. Seja sócio hoje e faça parte dessa volta histórica. "
+                            f"Quer saber quais são os planos disponíveis ou já recebeu o link para garantir o seu?"
                         )
                     
                     # Nota: A movimentação para "Em Qualificação" já foi feita no _handle_initial_trigger_audio
