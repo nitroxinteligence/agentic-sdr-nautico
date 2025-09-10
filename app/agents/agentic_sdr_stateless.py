@@ -83,14 +83,22 @@ class AgenticSDRStateless:
         if not lead_info.get("id"):
             return 'new'
             
-        # Lead existe mas sem nome - aguardando coleta
-        if lead_info.get("id") and not lead_info.get("name"):
+        # Lead existe mas sem nome válido - aguardando coleta
+        # Inclui nomes genéricos como "Lead Náutico", None, ou strings vazias
+        name = lead_info.get("name")
+        if (lead_info.get("id") and 
+            (not name or 
+             name.strip() == "" or 
+             name == "Lead Náutico" or
+             name == "Usuário Náutico" or
+             name == "Cliente Náutico")):
             return 'waiting_name'
             
-        # Lead com nome coletado
+        # Lead com nome válido coletado
         if (lead_info.get("id") and 
-            lead_info.get("name") and 
-            lead_info.get("name") != "Lead Náutico"):
+            name and 
+            name.strip() and
+            name not in ["Lead Náutico", "Usuário Náutico", "Cliente Náutico"]):
             return 'name_collected'
             
         return 'qualified'
@@ -107,13 +115,14 @@ class AgenticSDRStateless:
         
         # Lista de palavras inválidas que não são nomes
         invalid_words = {
-            'eu', 'me', 'mim', 'meu', 'minha', 'sim', 'não', 'ok', 'oi', 'olá', 
+            'eu', 'me', 'mim', 'meu', 'minha', 'sim', 'não', 'ok', 'oi', 'olá', 'ola',
             'bem', 'mal', 'bom', 'boa', 'obrigado', 'obrigada', 'valeu', 'brigado',
             'náutico', 'clube', 'time', 'futebol', 'aqui', 'aí', 'lá', 'onde',
             'quando', 'como', 'porque', 'qual', 'quem', 'que', 'o', 'a', 'um', 'uma',
             'este', 'esta', 'esse', 'essa', 'isto', 'isso', 'ele', 'ela', 'eles', 'elas',
             'nós', 'vocês', 'você', 'vc', 'voce', 'tu', 'teu', 'tua', 'seu', 'sua',
-            'sou', 'é', 'são', 'estou', 'está', 'estão', 'tem', 'tenho', 'tinha'
+            'sou', 'é', 'são', 'estou', 'está', 'estão', 'tem', 'tenho', 'tinha',
+            'hello', 'hi', 'dia', 'tarde', 'noite', 'tudo', 'como', 'vai', 'salve', 'fala'
         }
         
         # Padrões de resposta com nome
@@ -212,6 +221,28 @@ class AgenticSDRStateless:
         emoji_logger.system_debug(
             f"🚫 Nome rejeitado: '{message}' | Motivo: {reason}"
         )
+    
+    def _is_initial_greeting(self, message: str) -> bool:
+        """
+        Verifica se a mensagem é uma saudação inicial
+        """
+        clean_msg = message.strip().lower()
+        
+        # Padrões de saudação inicial
+        greeting_patterns = [
+            r'^olá\.?$', r'^oi\.?$', r'^ola\.?$', r'^hello\.?$', r'^hi\.?$',
+            r'^bom dia\.?$', r'^boa tarde\.?$', r'^boa noite\.?$',
+            r'^tudo bem\??$', r'^como vai\??$', r'^oi tudo bem\??$',
+            r'^olá tudo bem\??$', r'^oi pessoal\.?$', r'^e aí\??$',
+            r'^salve\.?$', r'^fala\.?$', r'^eae\.?$', r'^opa\.?$'
+        ]
+        
+        for pattern in greeting_patterns:
+            if re.match(pattern, clean_msg):
+                emoji_logger.system_debug(f"👋 Saudação detectada: '{message}' matched pattern: {pattern}")
+                return True
+                
+        return False
 
     async def initialize(self):
         """Inicialização dos módulos assíncronos"""
@@ -336,6 +367,17 @@ class AgenticSDRStateless:
             # ETAPA 0b: AGUARDANDO NOME - Processar resposta com nome
             elif conversation_state == 'waiting_name':
                 emoji_logger.system_debug(f"🔍 Analisando possível nome na mensagem: '{message}'")
+                
+                # Verificar se é uma saudação inicial (deve reiniciar processo)
+                if self._is_initial_greeting(message):
+                    emoji_logger.system_debug("👋 Detectada saudação inicial - reiniciando processo de coleta de nome")
+                    response = (
+                        "Oi! Que bom ter você aqui! 😊 "
+                        "Sou a Laura do Náutico. "
+                        "Para eu te atender melhor, qual é o seu nome?"
+                    )
+                    return response, lead_info
+                
                 extracted_name = self._extract_name_from_response(message)
                 
                 if extracted_name:
@@ -428,9 +470,17 @@ class AgenticSDRStateless:
                 return "<SILENCE>", lead_info
             emoji_logger.system_success("IA pode continuar - Lead não está em atendimento humano")
 
-            # Etapa 2.7: Verificar e executar Etapa 0 (Gatilho Inicial - Áudio)
+            # Etapa 2.7: Verificar e executar Etapa 0 (Gatilho Inicial - Áudio) - APENAS se necessário
             emoji_logger.system_debug("🎵 VERIFICAÇÃO ETAPA 0 - Verificando se deve enviar áudio inicial...")
-            await self._handle_initial_trigger_audio(lead_info, phone, conversation_history)
+            
+            # IMPORTANTE: Só enviar áudio se o lead não passou ainda pelo processo inicial
+            # Evita enviar áudio para conversas que já estão em andamento
+            current_state = await self._get_conversation_state(lead_info)
+            if current_state in ['name_collected'] and lead_info.get('current_stage') == 'INITIAL_CONTACT':
+                emoji_logger.system_debug("🎵 Lead precisa receber áudio inicial...")
+                await self._handle_initial_trigger_audio(lead_info, phone, conversation_history)
+            else:
+                emoji_logger.system_debug(f"🎵 Áudio inicial não necessário (estado: {current_state}, stage: {lead_info.get('current_stage')})")
             
             # Etapa 3: Sincronizar com serviços externos (CRM)
             emoji_logger.system_debug("🔗 SINCRONIZAÇÃO EXTERNA - Conectando com CRM...")
