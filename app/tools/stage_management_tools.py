@@ -179,6 +179,9 @@ class StageManagementTools:
                 except Exception as e:
                     emoji_logger.service_error(f"Erro ao qualificar lead no Supabase: {e}")
 
+            # IMPORTANTE: Cancelar follow-ups pendentes quando lead é qualificado
+            await StageManagementTools._cancel_pending_followups(supabase_lead_id, "Lead qualificado - não precisa mais de follow-ups")
+
             return {
                 "success": True,
                 "message": "Lead qualificado com sucesso",
@@ -326,6 +329,9 @@ class StageManagementTools:
                 except Exception as e:
                     emoji_logger.service_error(f"Erro ao encaminhar lead no Supabase: {e}")
 
+            # IMPORTANTE: Cancelar follow-ups pendentes quando lead vai para atendimento humano
+            await StageManagementTools._cancel_pending_followups(supabase_lead_id, "Lead em atendimento humano - IA pausada")
+
             return {
                 "success": True,
                 "message": "Lead encaminhado para atendimento humano",
@@ -398,3 +404,48 @@ class StageManagementTools:
             "description": "Estágio não reconhecido",
             "next_stages": []
         })
+
+    @staticmethod
+    async def _cancel_pending_followups(lead_id: str, reason: str = "Status alterado") -> Dict[str, Any]:
+        """
+        Cancela todos os follow-ups pendentes para um lead específico
+        """
+        try:
+            # Buscar follow-ups pendentes para este lead
+            from app.integrations.supabase_client import supabase_client
+            
+            pending_followups = supabase_client.client.table('follow_ups').select('id').eq(
+                'lead_id', lead_id
+            ).eq('status', 'pending').execute()
+            
+            if pending_followups.data:
+                followup_ids = [fu['id'] for fu in pending_followups.data]
+                
+                # Cancelar todos os follow-ups pendentes
+                cancel_result = supabase_client.client.table('follow_ups').update({
+                    'status': 'cancelled',
+                    'error_reason': reason,
+                    'updated_at': datetime.now().isoformat()
+                }).in_('id', followup_ids).execute()
+                
+                emoji_logger.service_success(f"✅ {len(followup_ids)} follow-ups cancelados para lead {lead_id[:8]}... - Motivo: {reason}")
+                
+                return {
+                    "success": True,
+                    "cancelled_count": len(followup_ids),
+                    "reason": reason
+                }
+            else:
+                emoji_logger.service_info(f"ℹ️ Nenhum follow-up pendente encontrado para lead {lead_id[:8]}...")
+                return {
+                    "success": True, 
+                    "cancelled_count": 0,
+                    "reason": "Nenhum follow-up pendente"
+                }
+                
+        except Exception as e:
+            emoji_logger.service_error(f"❌ Erro ao cancelar follow-ups para lead {lead_id[:8]}...: {e}")
+            return {
+                "success": False,
+                "message": f"Erro: {str(e)}"
+            }

@@ -78,6 +78,28 @@ class FollowUpServiceReal:
         if not self.is_initialized:
             await self.initialize()
         try:
+            # VALIDAÇÕES IMPORTANTES: Não agendar follow-up em casos específicos
+            if lead_info:
+                # 1. Não agendar para leads QUALIFICADOS (já pagaram)
+                qualification_status = lead_info.get("qualification_status", "").upper()
+                if qualification_status == "QUALIFIED":
+                    emoji_logger.service_info(f"❌ Follow-up cancelado - Lead qualificado (pagou): {phone_number}")
+                    return {
+                        "success": False,
+                        "message": "Lead já está qualificado - não precisa de follow-up",
+                        "reason": "lead_qualified"
+                    }
+                
+                # 2. Não agendar para leads em ATENDIMENTO HUMANO
+                current_stage = lead_info.get("current_stage", "").upper()
+                if current_stage == "ATENDIMENTO_HUMANO":
+                    emoji_logger.service_info(f"❌ Follow-up cancelado - Lead em atendimento humano: {phone_number}")
+                    return {
+                        "success": False,
+                        "message": "Lead em atendimento humano - não precisa de follow-up automático",
+                        "reason": "human_handoff"
+                    }
+            
             # Calcular horário inicial
             current_time = datetime.now(pytz.utc)
             initial_scheduled_time = current_time + timedelta(hours=delay_hours)
