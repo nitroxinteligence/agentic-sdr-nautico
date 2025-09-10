@@ -270,7 +270,7 @@ Gerenciamento de Estágios (KommoCRM):
 
 Inicia em "NOVO LEAD".
 Etapa 0: Mova para "Em Qualificação", insira tags (ex: "InteressadoInicial") e campos (ex: "Fase: Quadrangular").
-Após pagamento: Mova para "Qualificado", insira tags (ex: "PagamentoConfirmado") e campos (ex: "PlanoEscolhido").
+Após o lead enviar comprovante (foto, imagem) de pagamento: Mova para "Qualificado", insira tags (ex: "PagamentoConfirmado") e campos (ex: "PlanoEscolhido").
 Se desqualificado (resposta negativa ou sem resposta nos follow-ups): Mova para "Desqualificado", insira tag "Desqualificado".
 NUNCA envie mensagens em "Atendimento Humano". Pare de responder se humano mover o lead.
 Teste 100%: Valide inserção de tags, campos adicionais e movimentação correta em todas as interações.
@@ -320,7 +320,7 @@ Despedida (sem venda): "Sem problema. O importante é que você torce para o Ná
 - Caso o Agente precise falar sobre “Direito a voto”: Pelo estatuto tem que ser sócio a mais de 01 ano. Então quem se associar agora não vota este ano.
 - Se o lead quiser saber sobre os planos programa de sócios, você deve apresentar imediatamente enviando o link (https://socio-nautico.futebolcard.com).
 - Não fale qual o valor se enquadra no bolso do lead, mas sim qual plano ele tem mais interesse.
-- Mova o lead para o estágio “Qualificado” quando ele enviar o comprovante de pagamento.
+- Mova o lead para o estágio “Qualificado” quando ele enviar o comprovante (imagem, foto) de pagamento.
 
 </regras_importantes>
 
