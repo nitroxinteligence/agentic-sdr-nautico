@@ -111,14 +111,40 @@ class StageManagementTools:
         self, 
         lead_info: Dict[str, Any], 
         payment_value: Optional[str] = None,
-        payment_valid: bool = True,
+        payment_valid: bool = False,  # MUDANÇA: Padrão False para ser mais restritivo
         notes: str = "Lead qualificado - Pagamento confirmado"
     ) -> Dict[str, Any]:
         """
         Move lead para estágio "Qualificado"
-        Usado na ETAPA 5 após validação do comprovante
+        IMPORTANTE: Só deve ser usado após validação real de comprovante de pagamento
+        
+        Args:
+            lead_info: Informações do lead
+            payment_value: Valor do pagamento (obrigatório)
+            payment_valid: Deve ser True APENAS após validação de comprovante (padrão False)
+            notes: Observações sobre a qualificação
         """
         try:
+            # VALIDAÇÃO CRÍTICA: Não qualificar sem pagamento válido
+            if not payment_valid:
+                emoji_logger.service_error(
+                    "🔒 QUALIFICAÇÃO BLOQUEADA - payment_valid=False. "
+                    "Lead só pode ser qualificado com payment_valid=True após validação de comprovante."
+                )
+                return {
+                    "success": False,
+                    "message": "Qualificação rejeitada - payment_valid deve ser True após validação de comprovante"
+                }
+            
+            if not payment_value:
+                emoji_logger.service_error(
+                    "🔒 QUALIFICAÇÃO BLOQUEADA - payment_value não fornecido. "
+                    "Lead só pode ser qualificado com valor de pagamento válido."
+                )
+                return {
+                    "success": False,
+                    "message": "Qualificação rejeitada - payment_value é obrigatório"
+                }
             # Para operações no CRM, usar kommo_lead_id (inteiro), para Supabase usar id (UUID)
             kommo_lead_id = lead_info.get("kommo_lead_id")
             supabase_lead_id = lead_info.get("id")

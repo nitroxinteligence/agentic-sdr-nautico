@@ -711,32 +711,54 @@ class AgenticSDRStateless:
         try:
             response_text = response.lower()
             
-            # Verificar se é confirmação de pagamento
-            payment_indicators = [
-                "confirmado", "pagamento", "recebido", "bem-vindo ao sócio",
-                "sócio mais fiel", "r$", "valor", "confirmadíssimo"
-            ]
+            # Verificar se é confirmação de pagamento APENAS se já existe validação prévia de comprovante
+            # IMPORTANTE: Só qualifica se já foi validado um comprovante anteriormente
+            has_validated_payment = lead_info.get('is_valid_nautico_payment', False)
+            payment_value = lead_info.get('payment_value')
             
-            is_payment_confirmation = any(indicator in response_text for indicator in payment_indicators)
-            has_value_mention = "r$" in response_text
-            
-            if is_payment_confirmation and has_value_mention:
-                emoji_logger.system_info("🎯 DETECTADA CONFIRMAÇÃO DE PAGAMENTO - Qualificando lead automaticamente")
+            if has_validated_payment and payment_value:
+                payment_indicators = [
+                    "confirmado", "pagamento", "recebido", "bem-vindo ao sócio",
+                    "sócio mais fiel", "r$", "valor", "confirmadíssimo"
+                ]
                 
-                # Qualificar lead usando a instância já inicializada com CRM service
-                result = await self.stage_tools.move_to_qualificado(
-                    lead_info=lead_info,
-                    payment_value=None,  # Valor será extraído do lead_info se disponível
-                    payment_valid=True,
-                    notes="Qualificado automaticamente - Pagamento confirmado pela IA"
-                )
+                is_payment_confirmation = any(indicator in response_text for indicator in payment_indicators)
+                has_value_mention = "r$" in response_text
                 
-                if result.get("success"):
-                    emoji_logger.system_success("✅ Lead qualificado automaticamente após confirmação de pagamento")
-                    # Atualizar lead_info com dados atualizados
-                    lead_info.update(result.get("updated_lead_info", {}))
-                else:
-                    emoji_logger.system_error(f"Erro ao qualificar lead: {result.get('message')}")
+                if is_payment_confirmation and has_value_mention:
+                    emoji_logger.system_info("🎯 CONFIRMAÇÃO DE PAGAMENTO APÓS VALIDAÇÃO - Qualificando lead")
+                    
+                    # Qualificar lead usando a instância já inicializada com CRM service
+                    result = await self.stage_tools.move_to_qualificado(
+                        lead_info=lead_info,
+                        payment_value=str(payment_value),
+                        payment_valid=True,
+                        notes=f"Qualificado após confirmação - Comprovante previamente validado de R${payment_value}"
+                    )
+                    
+                    if result.get("success"):
+                        emoji_logger.system_success("✅ Lead qualificado após confirmação de pagamento validado")
+                        # Atualizar lead_info com dados atualizados
+                        lead_info.update(result.get("updated_lead_info", {}))
+                    else:
+                        emoji_logger.system_error(f"Erro ao qualificar lead: {result.get('message')}")
+            else:
+                # Log para detectar tentativas de qualificação sem validação
+                payment_indicators = [
+                    "confirmado", "pagamento", "recebido", "bem-vindo ao sócio",
+                    "sócio mais fiel", "confirmadíssimo"
+                ]
+                
+                is_payment_confirmation = any(indicator in response_text for indicator in payment_indicators)
+                
+                if is_payment_confirmation:
+                    emoji_logger.system_warning(
+                        f"⚠️ TENTATIVA DE QUALIFICAÇÃO SEM COMPROVANTE VÁLIDO - "
+                        f"has_validated_payment={has_validated_payment}, payment_value={payment_value}"
+                    )
+                    emoji_logger.system_info(
+                        "🔒 QUALIFICAÇÃO BLOQUEADA - Lead só pode ser qualificado após envio e validação de comprovante"
+                    )
                     
         except Exception as e:
             emoji_logger.system_error("CRM Actions", f"Erro ao executar ações do CRM: {e}")
