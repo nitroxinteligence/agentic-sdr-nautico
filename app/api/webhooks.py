@@ -25,6 +25,55 @@ from app.exceptions import HandoffActiveException
 
 router = APIRouter(prefix="/webhook", tags=["webhooks"])
 
+def clean_phone_number(raw_phone: str) -> str:
+    """
+    Limpa número de telefone removendo sufixos do WhatsApp
+    Exemplos: 
+    - '238443732942898@s.whatsapp.net' -> '238443732942898'
+    - '5581999999999@c.us' -> '5581999999999'
+    """
+    if not raw_phone:
+        return ""
+    
+    # Remover sufixos do WhatsApp (tanto @s.whatsapp.net quanto @c.us)
+    cleaned = raw_phone.replace('@c.us', '').replace('@s.whatsapp.net', '')
+    
+    # Log para debug se o número foi limpo
+    if raw_phone != cleaned:
+        emoji_logger.system_debug(f"Telefone limpo: '{raw_phone}' -> '{cleaned}'")
+    
+    return cleaned
+
+def validate_phone_number(phone: str) -> bool:
+    """
+    Valida se um número de telefone é válido
+    - Deve ter entre 10 e 15 dígitos
+    - Deve conter apenas números
+    - Não deve ser números obviamente inválidos (muito longos ou curtos demais)
+    """
+    if not phone:
+        return False
+    
+    # Remover caracteres não numéricos para validação
+    digits_only = ''.join(filter(str.isdigit, phone))
+    
+    # Validações básicas
+    if len(digits_only) < 10 or len(digits_only) > 15:
+        emoji_logger.system_warning(f"Número inválido (tamanho): '{phone}' -> {len(digits_only)} dígitos")
+        return False
+    
+    # Números obviamente inválidos (sequências muito longas de mesmo dígito)
+    if len(set(digits_only)) < 3:  # Menos de 3 dígitos únicos
+        emoji_logger.system_warning(f"Número inválido (pouca variação): '{phone}'")
+        return False
+    
+    # Números brasileiros válidos devem começar com 55 ou ter pelo menos 10 dígitos locais
+    if digits_only.startswith('55') and len(digits_only) < 12:
+        emoji_logger.system_warning(f"Número brasileiro inválido: '{phone}' -> {len(digits_only)} dígitos")
+        return False
+    
+    return True
+
 agno_detector = AGNOMediaDetector()
 
 
@@ -341,27 +390,27 @@ async def process_contacts_update(data: Dict[str, Any]):
         emoji_logger.system_info(f"Tentativa 0 - campo 'remoteJid' RAW: '{raw_remote_jid}'")
         if raw_remote_jid:
             # Extrair apenas os dígitos antes de @s.whatsapp.net ou @c.us
-            phone_number = raw_remote_jid.replace('@c.us', '').replace('@s.whatsapp.net', '')
+            phone_number = clean_phone_number(raw_remote_jid)
             emoji_logger.system_info(f"Tentativa 0 - telefone extraído de remoteJid: '{phone_number}'")
         
         # Tentativa 1: id direto
         if not phone_number:
             raw_id = contact_data.get('id', '')
             emoji_logger.system_info(f"Tentativa 1 - campo 'id' RAW: '{raw_id}'")
-            phone_number = raw_id.replace('@c.us', '').replace('@s.whatsapp.net', '') if raw_id else ''
+            phone_number = clean_phone_number(raw_id) if raw_id else ''
             emoji_logger.system_info(f"Tentativa 1 - telefone após limpeza: '{phone_number}'")
         
         # Tentativa 2: phone/number direto
         if not phone_number:
             raw_phone = contact_data.get('phone', '')
             emoji_logger.system_info(f"Tentativa 2a - campo 'phone' RAW: '{raw_phone}'")
-            phone_number = raw_phone.replace('@c.us', '').replace('@s.whatsapp.net', '') if raw_phone else ''
+            phone_number = clean_phone_number(raw_phone) if raw_phone else ''
             emoji_logger.system_info(f"Tentativa 2a - telefone após limpeza: '{phone_number}'")
             
         if not phone_number:
             raw_number = contact_data.get('number', '')
             emoji_logger.system_info(f"Tentativa 2b - campo 'number' RAW: '{raw_number}'")
-            phone_number = raw_number.replace('@c.us', '').replace('@s.whatsapp.net', '') if raw_number else ''
+            phone_number = clean_phone_number(raw_number) if raw_number else ''
             emoji_logger.system_info(f"Tentativa 2b - telefone após limpeza: '{phone_number}'")
         
         # Tentativa 3: estruturas aninhadas (contact, contactInfo, profile)
@@ -374,7 +423,7 @@ async def process_contacts_update(data: Dict[str, Any]):
                 if isinstance(nested_data, dict):
                     raw_nested_id = nested_data.get('id', '')
                     emoji_logger.system_info(f"Tentativa 3 - {key}.id RAW: '{raw_nested_id}'")
-                    nested_id = raw_nested_id.replace('@c.us', '').replace('@s.whatsapp.net', '') if raw_nested_id else ''
+                    nested_id = clean_phone_number(raw_nested_id) if raw_nested_id else ''
                     if nested_id:
                         phone_number = nested_id
                         emoji_logger.system_info(f"Telefone encontrado em {key}.id: '{phone_number}'")
@@ -382,7 +431,7 @@ async def process_contacts_update(data: Dict[str, Any]):
                         
                     raw_nested_phone = nested_data.get('phone', '')
                     emoji_logger.system_info(f"Tentativa 3 - {key}.phone RAW: '{raw_nested_phone}'")
-                    nested_phone = raw_nested_phone.replace('@c.us', '').replace('@s.whatsapp.net', '') if raw_nested_phone else ''
+                    nested_phone = clean_phone_number(raw_nested_phone) if raw_nested_phone else ''
                     if nested_phone:
                         phone_number = nested_phone
                         emoji_logger.system_info(f"Telefone encontrado em {key}.phone: '{phone_number}'")
@@ -715,21 +764,29 @@ async def process_message_webhook(data: dict):
             emoji_logger.system_debug(f"Processando mensagem {i+1}/{len(messages)}")
             emoji_logger.system_debug(f"Dados da mensagem: {json.dumps(message, indent=2)}")
             
-            phone_number = message.get("from")
+            raw_from = message.get("from", "")
+            # Limpar número de telefone removendo sufixos do WhatsApp
+            phone_number = clean_phone_number(raw_from)
             message_content = extract_message_content(message)
             message_type = message.get("type", "unknown")
             
             emoji_logger.system_debug(
-                f"Mensagem extraída - Telefone: {phone_number}, "
+                f"Mensagem extraída - Raw: {raw_from}, Telefone limpo: {phone_number}, "
                 f"Tipo: {message_type}, Conteúdo: '{message_content[:100]}...'"
             )
             
             if phone_number and message_content:
-                emoji_logger.webhook_success(
-                    f"Enviando mensagem para processamento - {phone_number}: '{message_content[:50]}...'"
-                )
-                # Processar mensagem através do sistema principal
-                await process_whatsapp_message(phone_number, message_content)
+                # Validar número de telefone antes de processar
+                if validate_phone_number(phone_number):
+                    emoji_logger.webhook_success(
+                        f"Enviando mensagem para processamento - {phone_number}: '{message_content[:50]}...'"
+                    )
+                    # Processar mensagem através do sistema principal
+                    await process_whatsapp_message(phone_number, message_content)
+                else:
+                    emoji_logger.webhook_error(
+                        f"Número de telefone inválido ignorado: '{phone_number}' (raw: '{raw_from}')"
+                    )
             else:
                 emoji_logger.webhook_warning(
                     f"Mensagem ignorada - Telefone: {bool(phone_number)}, "
@@ -893,7 +950,7 @@ async def process_new_message(data: Any):
                 emoji_logger.webhook_process("Mensagem própria ignorada")
                 continue
 
-            phone = remote_jid.split("@")[0] if "@" in remote_jid else remote_jid
+            phone = clean_phone_number(remote_jid)
 
             if "@g.us" in remote_jid:
                 emoji_logger.webhook_process(f"Mensagem de grupo ignorada: {remote_jid}")
@@ -958,6 +1015,13 @@ async def process_new_message(data: Any):
                 continue
 
             message_content = message_content or ""
+
+            # Validar número de telefone antes do processamento
+            if not validate_phone_number(phone):
+                emoji_logger.system_error(
+                    f"Número de telefone inválido ignorado: '{phone}' (remoteJid: '{remote_jid}')"
+                )
+                continue
 
             emoji_logger.evolution_receive(
                 phone, 
