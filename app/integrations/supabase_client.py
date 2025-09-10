@@ -348,18 +348,19 @@ class SupabaseClient:
     ) -> Dict[str, Any]:
         """Atualiza status do follow-up"""
         logger.debug(f"Attempting to update follow-up {follow_up_id} to status '{status}' with data: {executed_at}")
+        
+        update_data = {
+            'status': status,
+            'updated_at': datetime.now().isoformat()
+        }
+
+        if executed_at:
+            update_data['executed_at'] = executed_at.isoformat()
+            
+        if reason:
+            update_data['error_reason'] = reason
+
         try:
-            update_data = {
-                'status': status,
-                'updated_at': datetime.now().isoformat()
-            }
-
-            if executed_at:
-                update_data['executed_at'] = executed_at.isoformat()
-                
-            if reason:
-                update_data['error_reason'] = reason
-
             result = self.client.table('follow_ups').update(update_data).eq(
                 'id', follow_up_id
             ).execute()
