@@ -224,7 +224,7 @@ class Settings(BaseSettings):
     
     # Configurações de Áudio
     initial_audio_url: str = Field(
-        default="https://xxxx.supabase.co/storage/v1/object/public/documents/AUDIO-ENVIAR-NO-INICIO-DA-CONVERSA-2%20(1).mp3", 
+        default="https://fggrlyfxndvkrgapajid.supabase.co/storage/v1/object/public/documents/AUDIO-ENVIAR-NO-INICIO-DA-CONVERSA-2%20(1).mp3", 
         env="INITIAL_AUDIO_URL"
     )
 
