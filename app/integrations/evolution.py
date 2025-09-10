@@ -248,6 +248,19 @@ class EvolutionAPIClient:
         """
         try:
             phone = self._format_phone(phone)
+            
+            # NOVA VALIDAÇÃO: Verificar se o número existe no WhatsApp antes de enviar
+            number_exists = await self._check_whatsapp_number(phone)
+            if not number_exists:
+                emoji_logger.system_warning(
+                    f"⚠️ Número WhatsApp não existe ou não está disponível: {phone}"
+                )
+                return {
+                    "success": False,
+                    "error": "whatsapp_number_not_found",
+                    "message": f"Número {phone} não existe no WhatsApp"
+                }
+            
             if delay is None:
                 is_complex = len(message) > 300 or "?" in message
                 if is_complex:
@@ -366,8 +379,10 @@ class EvolutionAPIClient:
                 duration = duration_seconds
             
             # Payload corrigido para o padrão da Evolution API
+            # O número deve ter formato WhatsApp JID
+            whatsapp_number = f"{phone}@s.whatsapp.net"
             payload = {
-                "number": phone,
+                "number": whatsapp_number,
                 "presence": "composing",
                 "delay": int(duration * 1000)
             }
@@ -580,6 +595,19 @@ class EvolutionAPIClient:
         """
         try:
             phone = self._format_phone(phone)
+            
+            # NOVA VALIDAÇÃO: Verificar se o número existe no WhatsApp antes de enviar
+            number_exists = await self._check_whatsapp_number(phone)
+            if not number_exists:
+                emoji_logger.system_warning(
+                    f"⚠️ Áudio não enviado - Número WhatsApp não existe: {phone}"
+                )
+                return {
+                    "success": False,
+                    "error": "whatsapp_number_not_found",
+                    "message": f"Número {phone} não existe no WhatsApp"
+                }
+            
             with open(audio_path, "rb") as f:
                 audio_data = base64.b64encode(f.read()).decode()
             payload = {
@@ -860,6 +888,38 @@ class EvolutionAPIClient:
         Retorna o nome da instância sem codificação para esta Evolution API
         """
         return self.instance_name
+
+    async def _check_whatsapp_number(self, phone: str) -> bool:
+        """
+        Verifica se um número WhatsApp existe e está disponível
+        """
+        try:
+            payload = {
+                "numbers": [phone]
+            }
+            
+            response = await self._make_request(
+                "post",
+                f"/chat/checkNumber/{self._encode_instance_name()}",
+                json=payload
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                # O resultado deve ser uma lista com informações do número
+                if isinstance(result, list) and len(result) > 0:
+                    number_info = result[0]
+                    exists = number_info.get("exists", False)
+                    emoji_logger.system_debug(f"WhatsApp check para {phone}: exists={exists}")
+                    return exists
+                    
+            emoji_logger.system_debug(f"WhatsApp check para {phone}: resposta inválida")
+            return False
+            
+        except Exception as e:
+            emoji_logger.system_warning(f"Erro ao verificar número WhatsApp {phone}: {e}")
+            # Em caso de erro, permitir envio (fail-open)
+            return True
 
     def decrypt_whatsapp_media(
         self,
