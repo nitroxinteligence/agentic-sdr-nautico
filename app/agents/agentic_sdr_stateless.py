@@ -582,13 +582,14 @@ class AgenticSDRStateless:
                 
                 # Processar comprovante de pagamento do Náutico
                 if analysis.get("is_payment_receipt"):
-                    # VERIFICAÇÃO CRÍTICA: Evitar reprocessamento se pagamento já foi validado
+                    # VERIFICAÇÃO CRÍTICA: Evitar reprocessamento se pagamento já foi validado OU lead já qualificado
                     already_validated = lead_info.get('is_valid_nautico_payment', False)
+                    current_stage = lead_info.get('current_stage', '').upper()
                     
-                    if already_validated:
+                    if already_validated or current_stage == 'QUALIFICADO':
                         emoji_logger.system_info(
-                            "🔒 COMPROVANTE JÁ VALIDADO - Ignorando reprocessamento de pagamento. "
-                            f"Lead já tem pagamento confirmado de R${lead_info.get('payment_value', 'N/A')}"
+                            "🔒 COMPROVANTE IGNORADO - Lead já validado/qualificado. "
+                            f"Status: {current_stage}, Pagamento original: R${lead_info.get('payment_value', 'N/A')}"
                         )
                         # Não processar novamente, manter os dados existentes
                     else:
@@ -673,11 +674,17 @@ class AgenticSDRStateless:
         )
         
         # CORREÇÃO: Preservar informações críticas de pagamento que podem ter sido perdidas
-        payment_fields = ['payment_value', 'payer_name', 'is_valid_nautico_payment']
-        for field in payment_fields:
-            if field in lead_info and field not in updated_lead_info:
-                updated_lead_info[field] = lead_info[field]
-                emoji_logger.system_info(f"🔒 PRESERVADO campo de pagamento: {field}={lead_info[field]}")
+        # MAS APENAS se o lead ainda não foi qualificado (para evitar sobrescrever novos valores)
+        current_stage = lead_info.get('current_stage', '').upper()
+        
+        if current_stage != 'QUALIFICADO':
+            payment_fields = ['payment_value', 'payer_name', 'is_valid_nautico_payment']
+            for field in payment_fields:
+                if field in lead_info and field not in updated_lead_info:
+                    updated_lead_info[field] = lead_info[field]
+                    emoji_logger.system_info(f"🔒 PRESERVADO campo de pagamento: {field}={lead_info[field]}")
+        else:
+            emoji_logger.system_info("🔒 LEAD QUALIFICADO - Preservando valores originais, ignorando novos comprovantes")
         
         emoji_logger.system_success(
             f"Lead atualizado - Nome: '{updated_lead_info.get('name', 'N/A')}', "
@@ -740,6 +747,12 @@ class AgenticSDRStateless:
         """Analisa a resposta da IA e executa ações do CRM conforme necessário"""
         try:
             response_text = response.lower()
+            
+            # VERIFICAÇÃO CRÍTICA: Não executar ações para leads já qualificados
+            current_stage = lead_info.get('current_stage', '').upper()
+            if current_stage == 'QUALIFICADO':
+                emoji_logger.system_info("🔒 LEAD JÁ QUALIFICADO - Ignorando análise de CRM actions")
+                return
             
             # Verificar se é confirmação de pagamento APENAS se já existe validação prévia de comprovante
             # IMPORTANTE: Só qualifica se já foi validado um comprovante anteriormente
