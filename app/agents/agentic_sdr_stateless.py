@@ -756,9 +756,11 @@ class AgenticSDRStateless:
             
             # VERIFICAÇÃO CRÍTICA: Não executar ações para leads já qualificados
             current_stage = lead_info.get('current_stage', '').upper()
-            emoji_logger.system_info(f"🔍 DEBUG CRM ACTIONS: current_stage='{current_stage}', lead_id={lead_info.get('id')}")
+            already_validated = lead_info.get('is_valid_nautico_payment', False)
+            emoji_logger.system_info(f"🔍 DEBUG CRM ACTIONS: current_stage='{current_stage}', already_validated={already_validated}, lead_id={lead_info.get('id')}")
             
-            if current_stage == 'QUALIFICADO':
+            # Bloquear se já foi qualificado OU se já tem pagamento validado
+            if current_stage == 'QUALIFICADO' or already_validated:
                 emoji_logger.system_info("🔒 LEAD JÁ QUALIFICADO - Ignorando análise de CRM actions")
                 return
             
@@ -1140,10 +1142,8 @@ class AgenticSDRStateless:
         current_stage = lead_info.get('current_stage', '').upper()
         
         if has_validated_payment and payment_value:
-            if current_stage == 'QUALIFICADO':
-                payment_context = f"<contexto_pagamento>\nEste lead JÁ FOI QUALIFICADO com pagamento de R${payment_value}. Se enviarem novos comprovantes, apenas agradeça e confirme que o pagamento já foi processado. NÃO repita confirmações de boas-vindas.\n</contexto_pagamento>\n\n"
-            else:
-                payment_context = f"<contexto_pagamento>\nEste lead TEM comprovante de pagamento VALIDADO de R${payment_value}. Você PODE confirmar pagamento e dar boas-vindas.\n</contexto_pagamento>\n\n"
+            # Lead já tem pagamento validado - não deve confirmar novamente
+            payment_context = f"<contexto_pagamento>\nEste lead JÁ TEM PAGAMENTO VALIDADO de R${payment_value}. Se enviarem novos comprovantes, apenas agradeça e confirme que o pagamento já foi processado. NÃO repita confirmações de boas-vindas.\n</contexto_pagamento>\n\n"
         else:
             payment_context = f"<contexto_pagamento>\nEste lead NÃO tem comprovante de pagamento validado. JAMAIS confirme pagamento sem receber e validar documento. Sempre solicite o comprovante antes de qualquer confirmação.\n</contexto_pagamento>\n\n"
         
