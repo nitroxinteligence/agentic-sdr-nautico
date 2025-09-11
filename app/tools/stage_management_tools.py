@@ -185,7 +185,13 @@ class StageManagementTools:
                     
                     if payment_value:
                         lead_update_data["bill_value"] = payment_value
-                        lead_update_data["payment_confirmed"] = payment_valid
+                        lead_update_data["payment_value"] = payment_value
+                        lead_update_data["is_valid_nautico_payment"] = payment_valid
+                        
+                        # Incluir nome do pagador se disponível no lead_info
+                        payer_name = lead_info.get("payer_name")
+                        if payer_name:
+                            lead_update_data["payer_name"] = payer_name
                         
                     await supabase_client.update_lead(supabase_lead_id, lead_update_data)
                     
