@@ -649,9 +649,17 @@ class AgenticSDRStateless:
             existing_lead_info=lead_info,
             context=context
         )
+        
+        # CORREÇÃO: Preservar informações críticas de pagamento que podem ter sido perdidas
+        payment_fields = ['payment_value', 'payer_name', 'is_valid_nautico_payment']
+        for field in payment_fields:
+            if field in lead_info and field not in updated_lead_info:
+                updated_lead_info[field] = lead_info[field]
+                emoji_logger.system_info(f"🔒 PRESERVADO campo de pagamento: {field}={lead_info[field]}")
+        
         emoji_logger.system_success(
             f"Lead atualizado - Nome: '{updated_lead_info.get('name', 'N/A')}', "
-            f"Valor: {updated_lead_info.get('bill_value', 'N/A')}"
+            f"Valor: {updated_lead_info.get('payment_value', 'N/A')}"
         )
 
         # 4. Detectar e persistir mudanças no banco de dados

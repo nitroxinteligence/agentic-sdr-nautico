@@ -288,16 +288,23 @@ class MultimodalProcessor:
 
     def _analyze_document_content(self, text: str) -> Dict[str, Any]:
         """
-        Análise inteligente do conteúdo do documento
+        Análise inteligente do conteúdo do documento, incluindo validação para comprovantes de pagamento do Náutico.
         """
         analysis = {
             "has_text": bool(text and text.strip()),
             "is_bill": False,
+            "is_payment_receipt": False,
             "bill_value": None,
+            "payment_value": None,
+            "is_valid_nautico_payment": False,
+            "payer_name": None,
             "document_type": None
         }
+        
         if text:
             text_lower = text.lower()
+            
+            # Detectar se é boleto ou mensalidade
             if any(word in text_lower for word in [
                 "boleto", "cobrança", "vencimento"
             ]):
@@ -311,6 +318,20 @@ class MultimodalProcessor:
 
             if analysis["is_bill"]:
                 analysis["bill_value"] = self._extract_bill_value_from_text(text)
+            
+            # Detectar se é comprovante de pagamento
+            payment_keywords = ["comprovante", "pix", "transferência", "pagamento", "débito", "crédito", "transação"]
+            if any(keyword in text_lower for keyword in payment_keywords):
+                analysis["is_payment_receipt"] = True
+                analysis["payment_value"] = self._extract_payment_value_from_text(text)
+                analysis["payer_name"] = self._extract_payer_name_from_text(text)
+                
+                # Validar se é um valor válido do programa de sócios do Náutico
+                if analysis["payment_value"]:
+                    is_valid = self._is_valid_nautico_payment_value(analysis["payment_value"])
+                    analysis["is_valid_nautico_payment"] = is_valid
+                    emoji_logger.system_info(f"🔍 VALIDAÇÃO PAGAMENTO PDF: R$ {analysis['payment_value']} = {is_valid}")
+        
         return analysis
 
     def _analyze_image_content(self, text: str) -> Dict[str, Any]:
