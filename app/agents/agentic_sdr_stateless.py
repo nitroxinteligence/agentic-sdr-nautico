@@ -1082,10 +1082,20 @@ class AgenticSDRStateless:
         
         date_context = f"<contexto_temporal>\nA data e hora atuais são: {current_date_str} ({day_of_week_pt}).\n</contexto_temporal>\n\n"
         
+        # Injeção de Contexto de Validação de Pagamento
+        payment_context = ""
+        has_validated_payment = lead_info.get('is_valid_nautico_payment', False)
+        payment_value = lead_info.get('payment_value')
+        
+        if has_validated_payment and payment_value:
+            payment_context = f"<contexto_pagamento>\nEste lead TEM comprovante de pagamento VALIDADO de R${payment_value}. Você PODE confirmar pagamento e dar boas-vindas.\n</contexto_pagamento>\n\n"
+        else:
+            payment_context = f"<contexto_pagamento>\nEste lead NÃO tem comprovante de pagamento validado. JAMAIS confirme pagamento sem receber e validar documento. Sempre solicite o comprovante antes de qualquer confirmação.\n</contexto_pagamento>\n\n"
+        
         # Adicionar instrução crítica sobre formatação da resposta
         formatting_instruction = "\n\nIMPORTANTE: Responda sempre de forma direta, sem tags ou formatação especial. Use linguagem profissional e objetiva.\n"
         
-        system_prompt_with_context = date_context + system_prompt + formatting_instruction
+        system_prompt_with_context = date_context + payment_context + system_prompt + formatting_instruction
 
         # 2. Prepara as mensagens para o modelo.
         if is_followup:
