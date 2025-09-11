@@ -517,6 +517,9 @@ class AgenticSDRStateless:
             # ANÁLISE DA RESPOSTA PARA AÇÕES DO CRM
             await self._execute_crm_actions_from_response(final_response, lead_info, execution_context)
             
+            # DEBUG FINAL: Estado do lead ao final do processamento
+            emoji_logger.system_info(f"🔍 DEBUG FINAL: current_stage='{lead_info.get('current_stage')}', is_valid_payment={lead_info.get('is_valid_nautico_payment')}, payment_value={lead_info.get('payment_value')}")
+            
             emoji_logger.agentic_success(
                 f"✅ AGENTE STATELESS CONCLUÍDO - {phone}: "
                 f"'{message[:50]}...' -> '{final_response[:50]}...'"
@@ -585,6 +588,9 @@ class AgenticSDRStateless:
                     # VERIFICAÇÃO CRÍTICA: Evitar reprocessamento se pagamento já foi validado OU lead já qualificado
                     already_validated = lead_info.get('is_valid_nautico_payment', False)
                     current_stage = lead_info.get('current_stage', '').upper()
+                    
+                    # DEBUG: Verificar dados do lead
+                    emoji_logger.system_info(f"🔍 DEBUG LEAD STATUS: already_validated={already_validated}, current_stage='{current_stage}', lead_id={lead_info.get('id')}")
                     
                     if already_validated or current_stage == 'QUALIFICADO':
                         emoji_logger.system_info(
@@ -750,6 +756,8 @@ class AgenticSDRStateless:
             
             # VERIFICAÇÃO CRÍTICA: Não executar ações para leads já qualificados
             current_stage = lead_info.get('current_stage', '').upper()
+            emoji_logger.system_info(f"🔍 DEBUG CRM ACTIONS: current_stage='{current_stage}', lead_id={lead_info.get('id')}")
+            
             if current_stage == 'QUALIFICADO':
                 emoji_logger.system_info("🔒 LEAD JÁ QUALIFICADO - Ignorando análise de CRM actions")
                 return

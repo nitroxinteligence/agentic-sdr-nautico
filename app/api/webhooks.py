@@ -625,6 +625,10 @@ async def create_agent_with_context(
         # Passo 1: Obter dados locais do Supabase
         lead_data = await supabase_client.get_lead_by_phone(phone)
         
+        # DEBUG: Verificar dados carregados do banco
+        if lead_data:
+            emoji_logger.system_info(f"🔍 DEBUG LEAD CARREGADO: id={lead_data.get('id')}, current_stage='{lead_data.get('current_stage')}', is_valid_payment={lead_data.get('is_valid_nautico_payment')}, payment_value={lead_data.get('payment_value')}")
+        
         # Passo 2: Sincronização em Tempo Real com Kommo (se habilitado)
         if lead_data and lead_data.get("kommo_lead_id") and settings.enable_kommo_crm:
             crm_service = CRMServiceReal()
