@@ -751,16 +751,23 @@ class AgenticSDRStateless:
 
     async def _execute_crm_actions_from_response(self, response: str, lead_info: dict, execution_context: dict):
         """Analisa a resposta da IA e executa ações do CRM conforme necessário"""
+        emoji_logger.system_info("🚨 _execute_crm_actions_from_response INICIADA")
         try:
             response_text = response.lower()
             
             # VERIFICAÇÃO CRÍTICA: Não executar ações para leads já qualificados
             current_stage = lead_info.get('current_stage', '').upper()
             already_validated = lead_info.get('is_valid_nautico_payment', False)
+            
+            # LOGS DE DEBUG MÚLTIPLOS para garantir visibilidade
             emoji_logger.system_info(f"🔍 DEBUG CRM ACTIONS: current_stage='{current_stage}', already_validated={already_validated}, lead_id={lead_info.get('id')}")
+            emoji_logger.system_info(f"🔍 LEAD_INFO COMPLETO: {lead_info}")
             
             # Bloquear se já foi qualificado OU se já tem pagamento validado
-            if current_stage == 'QUALIFICADO' or already_validated:
+            should_block = current_stage == 'QUALIFICADO' or already_validated
+            emoji_logger.system_info(f"🔍 SHOULD_BLOCK: {should_block} (stage={current_stage=='QUALIFICADO'} OR validated={already_validated})")
+            
+            if should_block:
                 emoji_logger.system_info("🔒 LEAD JÁ QUALIFICADO - Ignorando análise de CRM actions")
                 return
             
