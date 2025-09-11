@@ -582,26 +582,48 @@ class AgenticSDRStateless:
                 
                 # Processar comprovante de pagamento do Náutico
                 if analysis.get("is_payment_receipt"):
-                    payment_value = analysis.get("payment_value")
-                    payer_name = analysis.get("payer_name")
-                    is_valid_payment = analysis.get("is_valid_nautico_payment", False)
+                    # VERIFICAÇÃO CRÍTICA: Evitar reprocessamento se pagamento já foi validado
+                    already_validated = lead_info.get('is_valid_nautico_payment', False)
                     
-                    # Armazenar informações do pagamento no lead_info
-                    lead_info['payment_value'] = payment_value
-                    lead_info['payer_name'] = payer_name
-                    lead_info['is_valid_nautico_payment'] = is_valid_payment
+                    if already_validated:
+                        emoji_logger.system_info(
+                            "🔒 COMPROVANTE JÁ VALIDADO - Ignorando reprocessamento de pagamento. "
+                            f"Lead já tem pagamento confirmado de R${lead_info.get('payment_value', 'N/A')}"
+                        )
+                        # Não processar novamente, manter os dados existentes
+                    else:
+                        emoji_logger.system_info("🆕 PRIMEIRO COMPROVANTE - Processando validação de pagamento")
+                        
+                        payment_value = analysis.get("payment_value")
+                        payer_name = analysis.get("payer_name")
+                        is_valid_payment = analysis.get("is_valid_nautico_payment", False)
+                        
+                        # Armazenar informações do pagamento no lead_info
+                        lead_info['payment_value'] = payment_value
+                        lead_info['payer_name'] = payer_name
+                        lead_info['is_valid_nautico_payment'] = is_valid_payment
+                    
+                    # Usar valores atuais (novos ou existentes)
+                    current_payment_value = lead_info.get('payment_value')
+                    current_payer_name = lead_info.get('payer_name')
+                    current_is_valid = lead_info.get('is_valid_nautico_payment', False)
                     
                     emoji_logger.multimodal_event(
-                        f"💰 Comprovante detectado - Valor: R${payment_value}, "
-                        f"Pagador: {payer_name}, Válido: {is_valid_payment}"
+                        f"💰 Comprovante detectado - Valor: R${current_payment_value}, "
+                        f"Pagador: {current_payer_name}, Válido: {current_is_valid}"
                     )
                     
                     # Debug adicional
-                    emoji_logger.system_info(f"🔍 DEBUG: is_valid_payment={is_valid_payment}, payment_value={payment_value}")
+                    emoji_logger.system_info(f"🔍 DEBUG: is_valid_payment={current_is_valid}, payment_value={current_payment_value}")
                     
-                    # Se o comprovante é válido, qualificar automaticamente o lead
-                    emoji_logger.system_info(f"🔍 CONDIÇÃO QUALIFICAÇÃO: is_valid_payment={is_valid_payment}, payment_value={payment_value}")
-                    if is_valid_payment and payment_value:
+                    # Se o comprovante é válido, qualificar automaticamente o lead (APENAS se ainda não foi qualificado)
+                    emoji_logger.system_info(f"🔍 CONDIÇÃO QUALIFICAÇÃO: is_valid_payment={current_is_valid}, payment_value={current_payment_value}")
+                    
+                    # VERIFICAÇÃO ADICIONAL: Evitar requalificação se já está qualificado
+                    current_stage = lead_info.get('current_stage', '').upper()
+                    if current_stage == 'QUALIFICADO':
+                        emoji_logger.system_info("🔒 LEAD JÁ QUALIFICADO - Ignorando nova tentativa de qualificação")
+                    elif current_is_valid and current_payment_value and not already_validated:
                         emoji_logger.system_info("🎯 INICIANDO qualificação automática do lead")
                         try:
                             emoji_logger.system_info("🎯 Qualificando automaticamente lead com comprovante válido")
@@ -609,14 +631,14 @@ class AgenticSDRStateless:
                             # Mover para "Qualificado" usando a instância já inicializada com CRM service
                             qualification_result = await self.stage_tools.move_to_qualificado(
                                 lead_info=lead_info,
-                                payment_value=str(payment_value),
+                                payment_value=str(current_payment_value),
                                 payment_valid=True,
-                                notes=f"Qualificado automaticamente - Comprovante de pagamento válido de R${payment_value}"
+                                notes=f"Qualificado automaticamente - Comprovante de pagamento válido de R${current_payment_value}"
                             )
                             
                             if qualification_result.get("success"):
                                 emoji_logger.system_success(
-                                    f"✅ Lead qualificado automaticamente - Pagamento R${payment_value} confirmado"
+                                    f"✅ Lead qualificado automaticamente - Pagamento R${current_payment_value} confirmado"
                                 )
                                 lead_info.update(qualification_result.get("updated_lead_info", {}))
                             else:
@@ -1094,9 +1116,13 @@ class AgenticSDRStateless:
         payment_context = ""
         has_validated_payment = lead_info.get('is_valid_nautico_payment', False)
         payment_value = lead_info.get('payment_value')
+        current_stage = lead_info.get('current_stage', '').upper()
         
         if has_validated_payment and payment_value:
-            payment_context = f"<contexto_pagamento>\nEste lead TEM comprovante de pagamento VALIDADO de R${payment_value}. Você PODE confirmar pagamento e dar boas-vindas.\n</contexto_pagamento>\n\n"
+            if current_stage == 'QUALIFICADO':
+                payment_context = f"<contexto_pagamento>\nEste lead JÁ FOI QUALIFICADO com pagamento de R${payment_value}. Se enviarem novos comprovantes, apenas agradeça e confirme que o pagamento já foi processado. NÃO repita confirmações de boas-vindas.\n</contexto_pagamento>\n\n"
+            else:
+                payment_context = f"<contexto_pagamento>\nEste lead TEM comprovante de pagamento VALIDADO de R${payment_value}. Você PODE confirmar pagamento e dar boas-vindas.\n</contexto_pagamento>\n\n"
         else:
             payment_context = f"<contexto_pagamento>\nEste lead NÃO tem comprovante de pagamento validado. JAMAIS confirme pagamento sem receber e validar documento. Sempre solicite o comprovante antes de qualquer confirmação.\n</contexto_pagamento>\n\n"
         
