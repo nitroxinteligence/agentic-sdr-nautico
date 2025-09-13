@@ -32,10 +32,14 @@ class Gemini:
         self.id = id
         self.api_key = api_key
         self.base_model_name = id
-        if id == "gemini-1.5-pro":
-            self.base_model_name = "gemini-1.5-pro"
-        elif id == "gemini-2.0-flash-thinking":
+        
+        # Mapeamento dinâmico para modelos base do Gemini
+        # Se for um modelo thinking, usa flash como base
+        if "thinking" in id.lower():
             self.base_model_name = "gemini-1.5-flash"
+        else:
+            # Para outros modelos, usa o próprio ID como base
+            self.base_model_name = id
 
         if GEMINI_AVAILABLE:
             genai.configure(api_key=api_key)
@@ -229,12 +233,12 @@ class ModelManager:
         try:
             if settings.agno_reasoning_enabled:
                 self.reasoning_model = Gemini(
-                    id="gemini-2.0-flash-thinking",
+                    id=settings.gemini_reasoning_model,
                     api_key=settings.gemini_api_key or settings.google_api_key
                 )
                 emoji_logger.system_ready(
                     "Modelo reasoning configurado",
-                    model="gemini-2.0-flash-thinking"
+                    model=settings.gemini_reasoning_model
                 )
         except Exception as e:
             emoji_logger.system_warning(f"Erro ao configurar reasoning: {e}")
@@ -388,7 +392,7 @@ class ModelManager:
                 settings.fallback_ai_model if self.fallback_model else None
             ),
             "reasoning": (
-                "gemini-2.0-flash-thinking" if self.reasoning_model else None
+                settings.gemini_reasoning_model if self.reasoning_model else None
             ),
             "initialized": self.is_initialized
         }

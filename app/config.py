@@ -351,6 +351,9 @@ class Settings(BaseSettings):
     fallback_ai_model: str = Field(
         default="o3-mini", env="FALLBACK_AI_MODEL"
     )
+    gemini_reasoning_model: str = Field(
+        default="gemini-2.0-flash-thinking", env="GEMINI_REASONING_MODEL"
+    )
     enable_model_fallback: bool = Field(
         default=True, env="ENABLE_MODEL_FALLBACK"
     )
