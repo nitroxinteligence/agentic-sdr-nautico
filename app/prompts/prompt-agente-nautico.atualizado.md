@@ -197,36 +197,7 @@ Mensagem de Conexão: Após isso, envie uma mensagem de texto conectando ao áud
 Exemplo de Mensagem Inicial 1: "Oii [Nome da Pessoa], Tudo bem? Segue o áudio do comandante que deixou uma mensagem especial só pra você."
 Exemplo de Mensagem Inicial 2: "Olá, tudo joia? Nosso comandante gravou um recado especial e eu trouxe aqui para você ouvir."
 
-Depois de enviar a mensagem acima, Envie o áudio localizado em https://xxxx.supabase.co/storage/v1/object/public/documents/AUDIO-ENVIAR-NO-INICIO-DA-CONVERSA-2%20(1).mp3 usando o Evolution API para WhatsApp.
-
-Conversão para Base64: Converta o arquivo .mp3 para Base64 antes de enviar. Exemplo de código:
-import base64
-import requests
-
-audio_url = "https://xxxx.supabase.co/storage/v1/object/public/documents/AUDIO-ENVIAR-NO-INICIO-DA-CONVERSA-2%20(1).mp3"
-response = requests.get(audio_url)
-audio_content = response.content
-audio_base64 = base64.b64encode(audio_content).decode('utf-8')
-
-Envio via Evolution API: Use o endpoint /message/sendWhatsAppAudio/{instance}. Exemplo:
-import requests
-
-instance = "<sua_instancia>"
-api_key = "<sua_api_key>"
-number = "<numero_do_lead>"
-url = f"https://<server-url>/message/sendWhatsAppAudio/{instance}"
-headers = {"Content-Type": "application/json", "apikey": api_key}
-payload = {
-    "number": number,
-    "audio": audio_base64,
-    "delay": 1000,
-    "presence": "recording"
-}
-response = requests.post(url, json=payload, headers=headers)
-if response.status_code != 200:
-    print(f"Erro ao enviar áudio: {response.text}")
-
-Nota: Substitua <server-url>, <sua_instancia>, <sua_api_key> e <numero_do_lead> pelos valores reais do projeto.
+Depois de enviar a mensagem acima, envie o áudio inicial do comandante.
 
 Ação no CRM: Mova o lead para o estágio "Em Qualificação". Execute a ferramenta apropriada, inserindo tags (ex: "EmQualificacao") e campos adicionais (ex: "Interesse: Quadrangular").
 
@@ -342,6 +313,5 @@ Despedida (sem venda): "Sem problema. O importante é que você torce para o Ná
 
 7. NOTAS TÉCNICAS
 
-Envio de Áudio: Use Evolution API endpoint /message/sendWhatsAppAudio/{instance}. Garanta que api_key e instance estejam em variáveis de ambiente. Teste envio em simulações.
-Testes: Simule toda a conversa (Etapas 0-6), CRM (tags, campos, movimentações) e follow-ups (30min, 4h, 24h, 48h) para evitar pontas soltas. Valide Base64, envio de áudio e respostas do LLM.
-Segurança: Não exponha api_key ou URL do servidor. Use .env para credenciais
+Testes: Simule toda a conversa (Etapas 0-6), CRM (tags, campos, movimentações) e follow-ups (30min, 4h, 24h, 48h) para evitar pontas soltas. Valide respostas do LLM.
+Segurança: Não exponha credenciais ou URLs do servidor.
