@@ -511,7 +511,21 @@ class AgenticSDRStateless:
 
             if should_send_audio:
                 emoji_logger.system_debug("🎵 Lead precisa receber áudio inicial...")
-                await self._handle_initial_trigger_audio(lead_info, phone, conversation_history)
+                audio_sent = await self._handle_initial_trigger_audio(lead_info, phone, conversation_history)
+
+                # NOVO: Se áudio foi enviado com sucesso, enviar mensagem conectiva e parar processamento LLM
+                if audio_sent:
+                    emoji_logger.system_info(f"🎵 Áudio enviado! Enviando mensagem conectiva para {lead_info.get('name')}")
+                    response = (
+                        f"{lead_info.get('name')}, enviei um áudio especial do nosso comandante "
+                        f"Hélio dos Anjos! Estamos na campanha de acesso à Série B e "
+                        f"cada torcedor como você pode fazer a diferença.\n\n"
+                        f"Torcedor, o Náutico precisa de você. Estamos no quadrangular "
+                        f"pelo acesso à Série B. Seja sócio hoje e faça parte dessa volta histórica. "
+                        f"Quer saber quais são os planos disponíveis ou já recebeu o link para garantir o seu?"
+                    )
+                    emoji_logger.system_success(f"🚪 RETORNANDO resposta pós-áudio para {lead_info.get('name')}")
+                    return response, lead_info
             else:
                 emoji_logger.system_debug(f"🎵 Áudio inicial não necessário (estado: {current_state}, stage: {current_stage}, já enviado: {already_sent_audio})")
             
