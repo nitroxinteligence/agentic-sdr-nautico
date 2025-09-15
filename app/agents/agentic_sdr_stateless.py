@@ -411,9 +411,10 @@ class AgenticSDRStateless:
                             emoji_logger.system_error("AgenticSDRStateless", f"Falha ao criar no Kommo: {e}")
                     
                     # AGORA SIM: Enviar áudio personalizado
+                    emoji_logger.system_info(f"🎵 TENTANDO ENVIAR ÁUDIO para {extracted_name} (coleta de nome)")
                     audio_sent = await self._handle_initial_trigger_audio(lead_info, phone, [])
-                    
-                    # Só enviar resposta se áudio foi enviado com sucesso
+
+                    # Resposta adaptada: menciona áudio apenas se foi enviado com sucesso
                     if audio_sent:
                         # Resposta personalizada conectando com áudio + início do pitch de vendas
                         response = (
@@ -424,16 +425,19 @@ class AgenticSDRStateless:
                             f"pelo acesso à Série B. Seja sócio hoje e faça parte dessa volta histórica. "
                             f"Quer saber quais são os planos disponíveis ou já recebeu o link para garantir o seu?"
                         )
+                        emoji_logger.service_success(f"✅ Áudio + mensagem enviados para {extracted_name}")
                     else:
-                        # Se áudio não foi enviado, dar mensagem apropriada com pitch
+                        # Se áudio não foi enviado, dar boas-vindas + pitch direto (sem mencionar áudio)
                         response = (
-                            f"Olá, {extracted_name}! Que bom te conhecer melhor. "
+                            f"Oii {extracted_name}, tudo bem? Que bom te conhecer melhor! "
                             f"Estamos na campanha de acesso à Série B e é o momento perfeito "
                             f"para você apoiar o Náutico!\n\n"
                             f"Torcedor, o Náutico precisa de você. Estamos no quadrangular "
                             f"pelo acesso à Série B. Seja sócio hoje e faça parte dessa volta histórica. "
                             f"Quer saber quais são os planos disponíveis ou já recebeu o link para garantir o seu?"
                         )
+                        emoji_logger.service_warning(f"⚠️ Apenas mensagem enviada para {extracted_name} (áudio falhou)")
+                        emoji_logger.system_debug(f"🔍 DEBUG: lead_info={lead_info}")
                     
                     # Nota: A movimentação para "Em Qualificação" já foi feita no _handle_initial_trigger_audio
                     
@@ -477,15 +481,30 @@ class AgenticSDRStateless:
 
             # Etapa 2.7: Verificar e executar Etapa 0 (Gatilho Inicial - Áudio) - APENAS se necessário
             emoji_logger.system_debug("🎵 VERIFICAÇÃO ETAPA 0 - Verificando se deve enviar áudio inicial...")
-            
+
             # IMPORTANTE: Só enviar áudio se o lead não passou ainda pelo processo inicial
             # Evita enviar áudio para conversas que já estão em andamento
             current_state = await self._get_conversation_state(lead_info)
-            if current_state in ['name_collected'] and lead_info.get('current_stage') == 'INITIAL_CONTACT':
+            current_stage = lead_info.get('current_stage', '').upper()
+            already_sent_audio = lead_info.get("initial_audio_sent", False)
+
+            # Condições mais flexíveis para envio de áudio
+            should_send_audio = (
+                current_state == 'name_collected' and
+                not already_sent_audio and
+                current_stage in ['INITIAL_CONTACT', 'NOVO_LEAD', '']
+            )
+
+            emoji_logger.system_debug(
+                f"🎵 DEBUG ÁUDIO: state={current_state}, stage={current_stage}, "
+                f"already_sent={already_sent_audio}, should_send={should_send_audio}"
+            )
+
+            if should_send_audio:
                 emoji_logger.system_debug("🎵 Lead precisa receber áudio inicial...")
                 await self._handle_initial_trigger_audio(lead_info, phone, conversation_history)
             else:
-                emoji_logger.system_debug(f"🎵 Áudio inicial não necessário (estado: {current_state}, stage: {lead_info.get('current_stage')})")
+                emoji_logger.system_debug(f"🎵 Áudio inicial não necessário (estado: {current_state}, stage: {current_stage}, já enviado: {already_sent_audio})")
             
             # Etapa 3: Sincronizar com serviços externos (CRM)
             emoji_logger.system_debug("🔗 SINCRONIZAÇÃO EXTERNA - Conectando com CRM...")
