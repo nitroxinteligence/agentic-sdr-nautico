@@ -496,11 +496,12 @@ class AgenticSDRStateless:
             current_stage = lead_info.get('current_stage', '').upper()
             already_sent_audio = lead_info.get("initial_audio_sent", False)
 
-            # Condições mais flexíveis para envio de áudio
+            # Condições mais flexíveis para envio de áudio - incluir leads existentes sem áudio
             should_send_audio = (
-                current_state == 'name_collected' and
                 not already_sent_audio and
-                current_stage in ['INITIAL_CONTACT', 'NOVO_LEAD', '']
+                lead_info.get("name") and
+                lead_info.get("name") != "Lead Náutico" and
+                current_stage in ['INITIAL_CONTACT', 'NOVO_LEAD', 'INTERESTED', '']
             )
 
             emoji_logger.system_debug(
