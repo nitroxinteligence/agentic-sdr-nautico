@@ -336,7 +336,11 @@ class AgenticSDRStateless:
 
             # NOVO: Verificar estado da conversa ANTES de processar
             conversation_state = await self._get_conversation_state(lead_info)
-            emoji_logger.system_debug(f"🔄 Estado da conversa: {conversation_state}")
+            emoji_logger.system_debug(
+                f"🔄 Estado da conversa: {conversation_state} | "
+                f"lead_info: id={lead_info.get('id')}, name='{lead_info.get('name')}', "
+                f"current_stage='{lead_info.get('current_stage')}'"
+            )
             
             # ETAPA 0a: NOVA CONVERSA - Perguntar nome primeiro
             if conversation_state == 'new':
@@ -440,7 +444,8 @@ class AgenticSDRStateless:
                         emoji_logger.system_debug(f"🔍 DEBUG: lead_info={lead_info}")
                     
                     # Nota: A movimentação para "Em Qualificação" já foi feita no _handle_initial_trigger_audio
-                    
+
+                    emoji_logger.system_success(f"🚪 RETORNANDO resposta da coleta de nome para {extracted_name}")
                     return response, lead_info
                 else:
                     # Nome não identificado ou inválido - tentar novamente
@@ -465,7 +470,10 @@ class AgenticSDRStateless:
                     return response, lead_info
 
             # Etapa 2: Atualizar histórico e contexto do lead (APENAS para estados avançados)
-            emoji_logger.system_debug("🔄 ATUALIZANDO CONTEXTO - Processando lead e histórico...")
+            emoji_logger.system_debug(
+                f"🔄 ATUALIZANDO CONTEXTO - Estado: {conversation_state}, "
+                f"Processando lead e histórico..."
+            )
             conversation_history, lead_info = await self._update_context(message, conversation_history, lead_info, execution_context.get("media"))
             emoji_logger.system_success(
                 f"Contexto atualizado - Lead: {lead_info.get('name', 'N/A')}, "
