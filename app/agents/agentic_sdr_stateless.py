@@ -94,12 +94,21 @@ class AgenticSDRStateless:
              name == "Cliente Náutico")):
             return 'waiting_name'
             
-        # Lead com nome válido coletado
-        if (lead_info.get("id") and 
-            name and 
+        # Lead com nome válido coletado E que já recebeu áudio inicial
+        if (lead_info.get("id") and
+            name and
             name.strip() and
-            name not in ["Lead Náutico", "Usuário Náutico", "Cliente Náutico"]):
+            name not in ["Lead Náutico", "Usuário Náutico", "Cliente Náutico"] and
+            lead_info.get("initial_audio_sent", False)):
             return 'name_collected'
+
+        # Lead com nome válido mas ainda não recebeu áudio - deve repassar pela coleta
+        if (lead_info.get("id") and
+            name and
+            name.strip() and
+            name not in ["Lead Náutico", "Usuário Náutico", "Cliente Náutico"] and
+            not lead_info.get("initial_audio_sent", False)):
+            return 'waiting_name'
             
         return 'qualified'
 
@@ -370,7 +379,7 @@ class AgenticSDRStateless:
             
             # ETAPA 0b: AGUARDANDO NOME - Processar resposta com nome
             elif conversation_state == 'waiting_name':
-                emoji_logger.system_debug(f"🔍 Analisando possível nome na mensagem: '{message}'")
+                emoji_logger.system_debug(f"🔍 Analisando possível nome na mensagem: '{message}' | Lead: {lead_info.get('name')} | Audio sent: {lead_info.get('initial_audio_sent')}")
                 
                 # Verificar se é uma saudação inicial (deve reiniciar processo)
                 if self._is_initial_greeting(message):
@@ -382,8 +391,15 @@ class AgenticSDRStateless:
                     )
                     return response, lead_info
                 
+                # Extrair nome da resposta ou usar nome existente se confirmado
                 extracted_name = self._extract_name_from_response(message)
-                
+                existing_name = lead_info.get("name")
+
+                # Se a pessoa confirma o nome existente (ex: "Josué" responde "Josué")
+                if existing_name and message.strip().lower() == existing_name.lower():
+                    extracted_name = existing_name
+                    emoji_logger.system_debug(f"✅ Nome confirmado pelo lead: {existing_name}")
+
                 if extracted_name:
                     emoji_logger.agentic_success(f"👤 Nome coletado com sucesso: {extracted_name}")
                     
