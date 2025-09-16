@@ -37,7 +37,6 @@ from app.tools.stage_management_tools import StageManagementTools
 from app.tools.followup_nautico_tools import FollowUpNauticoTools
 from app.services.audio_service import AudioService
 from app.services.data_cleanup_service import data_cleanup_service
-from app.utils.phone_validator import validate_phone_before_save
 
 
 class AgenticSDRStateless:
@@ -1340,7 +1339,15 @@ class AgenticSDRStateless:
             str: Resposta da knowledge base ou None se não encontrada
         """
         try:
-            if not self.knowledge_service or not self.knowledge_service.is_initialized:
+            # Verificar se o KnowledgeService está disponível e inicializado
+            if not hasattr(self, 'knowledge_service') or not self.knowledge_service or not hasattr(self.knowledge_service, 'is_initialized'):
+                return None
+
+            if not self.knowledge_service.is_initialized:
+                return None
+
+            # Verificar se o método search_knowledge_base existe
+            if not hasattr(self.knowledge_service, 'search_knowledge_base'):
                 return None
 
             # Buscar na knowledge base
