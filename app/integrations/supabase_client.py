@@ -13,6 +13,7 @@ from app.utils.logger import emoji_logger
 from app.utils.retry_decorator import supabase_retry, supabase_safe_operation
 
 from app.config import settings
+from app.utils.phone_validator import validate_phone_before_save
 
 
 class SupabaseClient:
@@ -47,6 +48,16 @@ class SupabaseClient:
     @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
     async def create_lead(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Cria um novo lead com retry automático"""
+
+        # Validar número de telefone antes de salvar
+        phone_number = lead_data.get('phone_number')
+        if phone_number:
+            validated_phone = validate_phone_before_save(phone_number)
+            if not validated_phone:
+                raise ValueError(f"Número de telefone inválido: {phone_number}")
+            lead_data['phone_number'] = validated_phone
+            emoji_logger.system_debug(f"📱 Telefone validado: {phone_number} → {validated_phone}")
+
         lead_data['created_at'] = datetime.now().isoformat()
         lead_data['updated_at'] = datetime.now().isoformat()
 

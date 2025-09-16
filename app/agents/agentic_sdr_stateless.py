@@ -36,6 +36,8 @@ from app.services.service_wrappers import (
 from app.tools.stage_management_tools import StageManagementTools
 from app.tools.followup_nautico_tools import FollowUpNauticoTools
 from app.services.audio_service import AudioService
+from app.services.data_cleanup_service import data_cleanup_service
+from app.utils.phone_validator import validate_phone_before_save
 
 
 class AgenticSDRStateless:
@@ -350,6 +352,35 @@ class AgenticSDRStateless:
                 f"lead_info: id={lead_info.get('id')}, name='{lead_info.get('name')}', "
                 f"current_stage='{lead_info.get('current_stage')}'"
             )
+
+            # COMANDO #CLEAR - Detectar e executar limpeza imediata
+            if message.strip().upper() == "#CLEAR":
+                emoji_logger.system_warning(f"🧹 COMANDO #CLEAR detectado de {phone}")
+
+                try:
+                    cleanup_result = await data_cleanup_service.execute_clear_command(phone)
+
+                    if cleanup_result.get("success"):
+                        response = (
+                            f"✅ Pronto! Todos os seus dados foram removidos do sistema. "
+                            f"Total de {cleanup_result.get('total_deleted', 0)} registros excluídos. "
+                            f"Se quiser conversar novamente, é só mandar uma mensagem!"
+                        )
+                    else:
+                        response = (
+                            "❌ Ops, tive um problema ao limpar seus dados. "
+                            "Tente novamente em alguns minutos ou entre em contato: wa.me/5581996990047"
+                        )
+
+                    emoji_logger.system_success(f"🧹 Resposta #CLEAR enviada para {phone}")
+                    return response, {}  # Lead info vazio pois foi deletado
+
+                except Exception as e:
+                    emoji_logger.system_error("AgenticSDRStateless", f"Erro no comando #CLEAR: {e}")
+                    return (
+                        "❌ Erro interno ao processar comando #CLEAR. "
+                        "Tente novamente ou entre em contato: wa.me/5581996990047"
+                    ), lead_info
             
             # ETAPA 0a: NOVA CONVERSA - Perguntar nome primeiro
             if conversation_state == 'new':
@@ -554,6 +585,14 @@ class AgenticSDRStateless:
             emoji_logger.system_debug("🏷️ SINCRONIZAÇÃO CRM - Atualizando tags e campos...")
             await self._sync_crm_data(lead_info, conversation_history)
             emoji_logger.system_success("Dados CRM sincronizados")
+
+            # Etapa 3.8: Consultar Knowledge Base primeiro (RAG)
+            emoji_logger.system_debug("📚 KNOWLEDGE BASE - Consultando base de conhecimento...")
+            knowledge_response = await self._check_knowledge_base(message)
+
+            if knowledge_response:
+                emoji_logger.system_success(f"📚 Resposta encontrada na Knowledge Base: '{knowledge_response[:50]}...'")
+                return knowledge_response, lead_info
 
             # Etapa 4: Gerar resposta via LLM (fluxo unificado)
             emoji_logger.system_debug("🧠 GERAÇÃO LLM - Processando resposta inteligente...")
@@ -1290,7 +1329,64 @@ class AgenticSDRStateless:
 
         return response_text or "Não consegui gerar uma resposta no momento."
 
-    def _detect_lead_changes(self, old_info: dict, new_info: dict) -> dict:
+    async def _check_knowledge_base(self, message: str) -> Optional[str]:
+        """
+        Consulta a Knowledge Base usando RAG
+
+        Args:
+            message: Mensagem do usuário
+
+        Returns:
+            str: Resposta da knowledge base ou None se não encontrada
+        """
+        try:
+            if not self.knowledge_service or not self.knowledge_service.is_initialized:
+                return None
+
+            # Buscar na knowledge base
+            results = await self.knowledge_service.search_knowledge_base(message, max_results=3)
+
+            if results and len(results) > 0:
+                best_result = results[0]
+                confidence = best_result.get("confidence", 0.0)
+
+                # Só usar se a confiança for alta o suficiente
+                if confidence >= 0.7:
+                    answer = best_result.get("answer", "")
+                    category = best_result.get("category", "")
+
+                    # Formatar resposta com tom do Náutico
+                    formatted_response = (
+                        f"{answer}\n\n"
+                        f"Bora se juntar à nação alvirrubra? 🚤"
+                    )
+
+                    emoji_logger.system_debug(
+                        f"📚 Knowledge Base hit: categoria='{category}', confiança={confidence:.2f}"
+                    )
+
+                    return formatted_response
+
+            # Se não encontrou resposta relevante, sugerir contribuição
+            suggestion_triggers = [
+                "não sei", "não encontrei", "como", "onde", "quando",
+                "qual", "quem", "por que", "história", "fundação"
+            ]
+
+            if any(trigger in message.lower() for trigger in suggestion_triggers):
+                return (
+                    "A base de conhecimento tá crescendo, torcedor! "
+                    "Quer sugerir algo pra deixar ela ainda mais completa? Me conta! 😊"
+                )
+
+            return None
+
+        except Exception as e:
+            emoji_logger.system_error("AgenticSDRStateless", f"Erro na Knowledge Base: {e}")
+            return None
+
+    @staticmethod
+    def _detect_lead_changes(old_info: dict, new_info: dict) -> dict:
         """Detecta mudanças nas informações do lead."""
         changes = {}
         for key, value in new_info.items():
