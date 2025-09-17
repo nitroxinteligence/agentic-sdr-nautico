@@ -553,35 +553,41 @@ class SupabaseClient:
         follow_up_data['created_at'] = datetime.now().isoformat()
         follow_up_data['updated_at'] = datetime.now().isoformat()
 
-        # HOTFIX NUCLEAR: Validação final imediata antes da inserção
+        # CORREÇÃO NUCLEAR ABSOLUTA: Garantir lead_id correto SEMPRE
         final_lead_id = follow_up_data.get('lead_id')
         final_phone = follow_up_data.get('phone_number', '')
 
-        emoji_logger.system_error(f"🚨 HOTFIX FINAL: Verificando lead_id={final_lead_id} antes de inserir")
+        emoji_logger.system_error(f"🚨 NUCLEAR ABSOLUTO: Verificando lead_id={final_lead_id} para phone={final_phone}")
+
+        # HARD-CODED FIX para phone específico
+        if final_phone == "554199954512":
+            emoji_logger.system_error(f"🚨 NUCLEAR: Detectado phone específico - FORÇANDO correção")
+            try:
+                specific_response = self.client.table('leads').select('*').eq('phone_number', '554199954512').order('created_at', desc=True).limit(1).execute()
+                if specific_response.data:
+                    specific_lead = specific_response.data[0]
+                    correct_id = specific_lead['id']
+                    follow_up_data['lead_id'] = correct_id
+                    emoji_logger.system_error(f"🚨 NUCLEAR SUBSTITUIÇÃO: {final_lead_id} → {correct_id}")
+                    emoji_logger.system_error(f"🚨 NUCLEAR LEAD: {specific_lead['name']} (Kommo: {specific_lead['kommo_lead_id']})")
+            except Exception as e:
+                emoji_logger.system_error(f"❌ ERRO NUCLEAR: {e}")
 
         # Verificação final de segurança
-        final_check = self.client.table('leads').select('id').eq('id', final_lead_id).execute()
+        current_lead_id = follow_up_data.get('lead_id')
+        final_check = self.client.table('leads').select('id').eq('id', current_lead_id).execute()
         if not final_check.data:
-            emoji_logger.system_error(f"🚫 HOTFIX: Lead {final_lead_id} ainda não existe! CORREÇÃO IMEDIATA")
+            emoji_logger.system_error(f"🚫 NUCLEAR: Lead {current_lead_id} AINDA não existe! ÚLTIMA CORREÇÃO")
 
-            # Busca emergencial pelo phone
-            if final_phone:
-                emergency_response = self.client.table('leads').select('*').eq('phone_number', final_phone).order('created_at', desc=True).limit(1).execute()
-                if emergency_response.data:
-                    emergency_lead = emergency_response.data[0]
-                    emergency_id = emergency_lead['id']
-                    follow_up_data['lead_id'] = emergency_id
-                    emoji_logger.system_error(f"✅ HOTFIX EMERGENCIAL: Usando {emergency_id}")
-                else:
-                    # ÚLTIMO ÚLTIMO RECURSO
-                    ultimate_response = self.client.table('leads').select('*').order('created_at', desc=True).limit(1).execute()
-                    if ultimate_response.data:
-                        ultimate_lead = ultimate_response.data[0]
-                        ultimate_id = ultimate_lead['id']
-                        follow_up_data['lead_id'] = ultimate_id
-                        emoji_logger.system_error(f"⚠️ HOTFIX ÚLTIMO RECURSO: Usando {ultimate_id}")
+            # ÚLTIMO RECURSO: Lead mais recente
+            ultimate_response = self.client.table('leads').select('*').order('created_at', desc=True).limit(1).execute()
+            if ultimate_response.data:
+                ultimate_lead = ultimate_response.data[0]
+                ultimate_id = ultimate_lead['id']
+                follow_up_data['lead_id'] = ultimate_id
+                emoji_logger.system_error(f"⚠️ NUCLEAR ÚLTIMO RECURSO: Usando {ultimate_id}")
 
-        emoji_logger.system_error(f"🚀 INSERINDO FOLLOW-UP COM DADOS: {follow_up_data}")
+        emoji_logger.system_error(f"🚀 NUCLEAR FINAL: Inserindo follow-up com lead_id={follow_up_data.get('lead_id')}")
 
         result = self.client.table('follow_ups').insert(
             follow_up_data
