@@ -88,6 +88,70 @@ class SupabaseClient:
 
         raise Exception("Erro ao atualizar lead")
 
+    @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    async def delete_lead(self, lead_id: str) -> bool:
+        """Deleta um lead do banco de dados"""
+        try:
+            result = self.client.table('leads').delete().eq('id', lead_id).execute()
+            return True
+        except Exception as e:
+            emoji_logger.system_error(f"Erro ao deletar lead {lead_id}: {e}")
+            raise
+
+    @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    async def delete_messages_by_lead(self, lead_id: str) -> bool:
+        """Deleta todas as mensagens de um lead"""
+        try:
+            result = self.client.table('messages').delete().eq('lead_id', lead_id).execute()
+            return True
+        except Exception as e:
+            emoji_logger.system_error(f"Erro ao deletar mensagens do lead {lead_id}: {e}")
+            raise
+
+    @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    async def delete_conversation_by_phone(self, phone: str) -> bool:
+        """Deleta conversa por telefone"""
+        try:
+            result = self.client.table('conversations').delete().eq('phone_number', phone).execute()
+            return True
+        except Exception as e:
+            emoji_logger.system_error(f"Erro ao deletar conversa para {phone}: {e}")
+            raise
+
+    @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    async def delete_follow_ups_by_lead(self, lead_id: str) -> bool:
+        """Deleta todos os follow-ups de um lead"""
+        try:
+            result = self.client.table('follow_ups').delete().eq('lead_id', lead_id).execute()
+            return True
+        except Exception as e:
+            emoji_logger.system_error(f"Erro ao deletar follow-ups do lead {lead_id}: {e}")
+            raise
+
+    @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    async def delete_qualifications_by_lead(self, lead_id: str) -> bool:
+        """Deleta todas as qualificações de um lead"""
+        try:
+            result = self.client.table('leads_qualifications').delete().eq('lead_id', lead_id).execute()
+            return True
+        except Exception as e:
+            emoji_logger.system_error(f"Erro ao deletar qualificações do lead {lead_id}: {e}")
+            raise
+
+    @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    async def delete_analytics_by_phone(self, phone: str) -> bool:
+        """Deleta eventos de analytics por telefone"""
+        try:
+            # Analytics pode ter phone_number ou nos dados do evento
+            result = self.client.table('analytics').delete().or_(
+                f'phone_number.eq.{phone},event_data->>phone_number.eq.{phone}'
+            ).execute()
+            return True
+        except Exception as e:
+            emoji_logger.system_error(f"Erro ao deletar analytics para {phone}: {e}")
+            # Não fazer raise para analytics, pois pode não existir a coluna
+            return False
+
     async def get_qualified_leads(self) -> List[Dict[str, Any]]:
         """Retorna leads qualificados"""
         try:

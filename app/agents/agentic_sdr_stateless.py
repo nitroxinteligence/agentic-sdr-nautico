@@ -380,27 +380,36 @@ class AgenticSDRStateless:
             # ETAPA 0a: NOVA CONVERSA - Perguntar nome primeiro
             if conversation_state == 'new':
                 emoji_logger.agentic_start("🆕 Nova conversa - perguntando nome antes de criar lead")
-                
+
                 response = (
                     "Olá! Aqui é Laura, do Náutico! "
                     "Vi que você demonstrou interesse no clube. "
                     "Qual é seu nome para eu te atender melhor?"
                 )
-                
-                # Criar lead temporário APENAS para manter estado (sem nome ainda)
-                temp_lead_data = {
-                    "phone_number": phone,
-                    "name": None,  # IMPORTANTE: Sem nome ainda
-                    "current_stage": "AGUARDANDO_NOME"
-                }
-                
-                try:
-                    created_lead = await supabase_client.create_lead(temp_lead_data)
-                    lead_info.update(created_lead)
-                    emoji_logger.system_success(f"Lead temporário criado: {lead_info.get('id')}")
-                except Exception as e:
-                    emoji_logger.system_error("AgenticSDRStateless", f"Erro ao criar lead temporário: {e}")
-                
+
+                # VERIFICAR SE JÁ EXISTE LEAD PARA EVITAR DUPLICATAS
+                existing_lead = await supabase_client.get_lead_by_phone(phone)
+                if existing_lead:
+                    emoji_logger.system_warning(f"Lead já existe para {phone}, usando existente: {existing_lead.get('id')}")
+                    lead_info.update(existing_lead)
+                    # Atualizar para estado aguardando nome se necessário
+                    if existing_lead.get("current_stage") != "AGUARDANDO_NOME":
+                        await supabase_client.update_lead(existing_lead["id"], {"current_stage": "AGUARDANDO_NOME"})
+                else:
+                    # Criar lead temporário APENAS se não existir
+                    temp_lead_data = {
+                        "phone_number": phone,
+                        "name": None,  # IMPORTANTE: Sem nome ainda
+                        "current_stage": "AGUARDANDO_NOME"
+                    }
+
+                    try:
+                        created_lead = await supabase_client.create_lead(temp_lead_data)
+                        lead_info.update(created_lead)
+                        emoji_logger.system_success(f"Lead temporário criado: {lead_info.get('id')}")
+                    except Exception as e:
+                        emoji_logger.system_error("AgenticSDRStateless", f"Erro ao criar lead temporário: {e}")
+
                 return response, lead_info
             
             # ETAPA 0b: AGUARDANDO NOME - Processar resposta com nome
@@ -603,7 +612,18 @@ class AgenticSDRStateless:
             
             # DEBUG FINAL: Estado do lead ao final do processamento
             emoji_logger.system_info(f"🔍 DEBUG FINAL: current_stage='{lead_info.get('current_stage')}', is_valid_payment={lead_info.get('is_valid_nautico_payment')}, payment_value={lead_info.get('payment_value')}")
-            
+
+            # NOVO: Aprendizado automático da knowledge_base
+            if self.knowledge_service and len(message.strip()) > 10:
+                try:
+                    await self.knowledge_service.auto_learn_from_interaction(
+                        user_message=message,
+                        ai_response=final_response,
+                        lead_info=lead_info
+                    )
+                except Exception as e:
+                    emoji_logger.system_debug(f"Erro no aprendizado automático: {e}")
+
             emoji_logger.agentic_success(
                 f"✅ AGENTE STATELESS CONCLUÍDO - {phone}: "
                 f"'{message[:50]}...' -> '{final_response[:50]}...'"

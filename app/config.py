@@ -180,7 +180,7 @@ class Settings(BaseSettings):
     agno_model: str = Field(default="gemini-2.5-pro")
     agno_fallback_model: str = Field(default="o1-mini")
     agno_max_tokens: int = Field(default=4096)
-    agno_temperature: float = Field(default=0.7)
+    agno_temperature: float = Field(default=0.5)
     agno_reasoning_enabled: bool = Field(default=True)
     max_message_length: int = Field(default=4096)
     webhook_timeout: int = Field(default=30)
@@ -362,7 +362,7 @@ class Settings(BaseSettings):
     )
     gemini_retry_delay: float = Field(default=5.0, env="GEMINI_RETRY_DELAY")
     ai_max_tokens: int = Field(default=4096, env="AI_MAX_TOKENS")
-    ai_temperature: float = Field(default=0.7, env="AI_TEMPERATURE")
+    ai_temperature: float = Field(default=0.5, env="AI_TEMPERATURE")
     ai_top_p: float = Field(default=0.9, env="AI_TOP_P")
     ai_frequency_penalty: float = Field(
         default=0.1, env="AI_FREQUENCY_PENALTY"
