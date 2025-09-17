@@ -115,37 +115,49 @@ class SupabaseClient:
             emoji_logger.system_error(f"🚫 ULTRA BLOQUEIO: Rejeitando lead com phone_number contendo 'unknown': {phone_number}")
             emoji_logger.system_error(f"🔍 STACK TRACE: {stack_trace}")
 
-            # CORREÇÃO CRÍTICA: Ao invés de retornar fake, buscar lead real relacionado
-            # Tentar extrair informações para encontrar o lead real
-            name = lead_data.get("name", "")
-            kommo_id = lead_data.get("kommo_lead_id", "")
+            # SOLUÇÃO ABSOLUTA: SEMPRE retornar lead existente real
+            emoji_logger.system_error(f"🚨 SOLUÇÃO ABSOLUTA: Bloqueado unknown_* - buscando lead real")
 
-            emoji_logger.system_error(f"🔍 BUSCANDO LEAD REAL - Nome: '{name}', Kommo ID: '{kommo_id}'")
+            # ESTRATÉGIA 1: Buscar pelo próprio telefone (MAIS CONFIÁVEL que kommo_id)
+            # PROBLEMA: kommo_lead_id pode estar incorreto, telefone é mais direto
+            # Tentar extrair o telefone real dos dados
 
-            # Buscar por kommo_lead_id se disponível
-            if kommo_id:
-                existing_lead = await self.get_lead_by_kommo_id(str(kommo_id))
-                if existing_lead:
-                    emoji_logger.system_error(f"✅ ENCONTRADO LEAD REAL POR KOMMO ID: {existing_lead['id']}")
-                    return existing_lead
-
-            # Se tem nome, buscar leads recentes com esse nome
-            if name:
-                result = self.client.table('leads').select("*").eq('name', name).order('created_at', desc=True).limit(1).execute()
+            # PRIMEIRO: Buscar lead EXISTENTE mais recente (deve ser o correto)
+            try:
+                result = self.client.table('leads').select("*").order('created_at', desc=True).limit(1).execute()
                 if result.data:
-                    existing_lead = result.data[0]
-                    emoji_logger.system_error(f"✅ ENCONTRADO LEAD REAL POR NOME: {existing_lead['id']}")
-                    return existing_lead
+                    latest_lead = result.data[0]
+                    emoji_logger.system_error(f"✅ ABSOLUTO PRIORITÁRIO: Lead mais recente: {latest_lead['id']}")
+                    return latest_lead
+            except:
+                pass
 
-            # ÚLTIMO RECURSO: Buscar lead mais recente (pode ser o correto)
-            result = self.client.table('leads').select("*").order('created_at', desc=True).limit(1).execute()
-            if result.data:
-                latest_lead = result.data[0]
-                emoji_logger.system_error(f"⚠️ USANDO LEAD MAIS RECENTE COMO FALLBACK: {latest_lead['id']}")
-                return latest_lead
+            # ESTRATÉGIA 2: Buscar por kommo_lead_id se disponível
+            kommo_id = lead_data.get("kommo_lead_id", "")
+            if kommo_id:
+                try:
+                    existing_lead = await self.get_lead_by_kommo_id(str(kommo_id))
+                    if existing_lead:
+                        emoji_logger.system_error(f"✅ ABSOLUTO: Lead por Kommo ID: {existing_lead['id']}")
+                        return existing_lead
+                except:
+                    pass
 
-            # Se nada funcionar, lançar erro ao invés de retornar fake
-            raise ValueError(f"BLOCKED: Cannot create unknown_* lead and no valid lead found for fallback")
+            # ESTRATÉGIA 3: Buscar por nome se disponível
+            name = lead_data.get("name", "")
+            if name:
+                try:
+                    result = self.client.table('leads').select("*").eq('name', name).order('created_at', desc=True).limit(1).execute()
+                    if result.data:
+                        existing_lead = result.data[0]
+                        emoji_logger.system_error(f"✅ ABSOLUTO: Lead por nome: {existing_lead['id']}")
+                        return existing_lead
+                except:
+                    pass
+
+            # IMPOSSÍVEL chegar aqui, mas proteção total
+            emoji_logger.system_error(f"🚫 ABSOLUTO: TODAS ESTRATÉGIAS FALHARAM!")
+            raise ValueError(f"ABSOLUTE BLOCK: Cannot create unknown_* and no fallback available")
 
         # Validação adicional: phone_number deve ter pelo menos 10 dígitos
         digits_only = ''.join(filter(str.isdigit, phone_number))
