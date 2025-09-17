@@ -48,6 +48,13 @@ class SupabaseClient:
     async def create_lead(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Cria um novo lead com retry automático"""
 
+        # VALIDAÇÃO CRÍTICA: Prevenir criação de leads com phone_number inválidos
+        phone_number = lead_data.get('phone_number')
+        if phone_number and phone_number.startswith('unknown_'):
+            from app.utils.logger import emoji_logger
+            emoji_logger.system_error(f"🚫 BLOQUEADO: Tentativa de criar lead com phone_number inválido: {phone_number}")
+            raise ValueError(f"Não é permitido criar leads com phone_number 'unknown_*': {phone_number}")
+
         lead_data['created_at'] = datetime.now().isoformat()
         lead_data['updated_at'] = datetime.now().isoformat()
 

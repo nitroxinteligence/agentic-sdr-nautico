@@ -284,23 +284,30 @@ class CRMServiceReal:
             
             custom_fields = []
             # Adicionar telefone como campo customizado (phone e whatsapp)
-            if lead_data.get("phone"):
-                # Adicionar ao campo phone se existir
-                if self.custom_fields.get("phone"):
-                    custom_fields.append({
-                        "field_id": self.custom_fields["phone"],
-                        "values": [{
-                            "value": lead_data["phone"]
-                        }]
-                    })
-                # Adicionar ao campo whatsapp se existir
-                if self.custom_fields.get("whatsapp"):
-                    custom_fields.append({
-                        "field_id": self.custom_fields["whatsapp"],
-                        "values": [{
-                            "value": lead_data["phone"]
-                        }]
-                    })
+            # CORREÇÃO: Usar phone_number se phone não estiver disponível
+            phone_value = lead_data.get("phone") or lead_data.get("phone_number")
+            if phone_value:
+                # Validação de segurança: evitar números unknown_* sendo enviados ao CRM
+                if not phone_value.startswith("unknown_"):
+                    # Adicionar ao campo phone se existir
+                    if self.custom_fields.get("phone"):
+                        custom_fields.append({
+                            "field_id": self.custom_fields["phone"],
+                            "values": [{
+                                "value": phone_value
+                            }]
+                        })
+                    # Adicionar ao campo whatsapp se existir
+                    if self.custom_fields.get("whatsapp"):
+                        custom_fields.append({
+                            "field_id": self.custom_fields["whatsapp"],
+                            "values": [{
+                                "value": phone_value
+                            }]
+                        })
+                else:
+                    emoji_logger.system_error(f"🚫 BLOQUEADO: Tentativa de criar lead no CRM com phone_number inválido: {phone_value}")
+                    raise ValueError(f"Número de telefone inválido para CRM: {phone_value}")
             if lead_data.get("bill_value"):
                 custom_fields.append({
                     "field_id": self.custom_fields.get("bill_value", 392804),
@@ -413,19 +420,25 @@ class CRMServiceReal:
             custom_fields = []
             
             # Handle phone fields separately (phone and whatsapp)
-            if update_data.get("phone"):
-                # Adicionar ao campo phone se existir
-                if self.custom_fields.get("phone"):
-                    custom_fields.append({
-                        "field_id": self.custom_fields["phone"],
-                        "values": [{"value": update_data["phone"]}]
-                    })
-                # Adicionar ao campo whatsapp se existir
-                if self.custom_fields.get("whatsapp"):
-                    custom_fields.append({
-                        "field_id": self.custom_fields["whatsapp"],
-                        "values": [{"value": update_data["phone"]}]
-                    })
+            # CORREÇÃO: Usar phone_number se phone não estiver disponível
+            phone_update_value = update_data.get("phone") or update_data.get("phone_number")
+            if phone_update_value:
+                # Validação de segurança: evitar números unknown_* sendo enviados ao CRM
+                if not phone_update_value.startswith("unknown_"):
+                    # Adicionar ao campo phone se existir
+                    if self.custom_fields.get("phone"):
+                        custom_fields.append({
+                            "field_id": self.custom_fields["phone"],
+                            "values": [{"value": phone_update_value}]
+                        })
+                    # Adicionar ao campo whatsapp se existir
+                    if self.custom_fields.get("whatsapp"):
+                        custom_fields.append({
+                            "field_id": self.custom_fields["whatsapp"],
+                            "values": [{"value": phone_update_value}]
+                        })
+                else:
+                    emoji_logger.system_warning(f"⚠️ IGNORADO: Tentativa de atualizar CRM com phone_number inválido: {phone_update_value}")
             
             field_map = {
                 "bill_value": self.custom_fields.get("bill_value"),
