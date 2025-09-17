@@ -116,6 +116,12 @@ class FollowUpServiceReal:
                 supabase_lead_id = await self._get_or_create_supabase_lead_id(
                     lead_info
                 )
+
+            # Se não conseguiu obter um lead_id válido, não criar o follow-up
+            if not supabase_lead_id:
+                emoji_logger.service_error(f"❌ BLOQUEADO: Não foi possível obter lead_id válido para follow-up de {clean_phone}")
+                return {"success": False, "error": "invalid_lead_id"}
+
             followup_data = {
                 "lead_id": supabase_lead_id, "phone_number": clean_phone,
                 "message": message, "scheduled_at": scheduled_time.isoformat(),
@@ -425,17 +431,17 @@ class FollowUpServiceReal:
         # Buscar telefone em diferentes campos possíveis
         phone = lead_info.get("phone") or lead_info.get("phone_number") or ""
 
-        emoji_logger.service_debug(f"🔍 _get_or_create_supabase_lead_id: phone='{phone}', lead_info keys: {list(lead_info.keys())}")
+        emoji_logger.service_error(f"🔍 _get_or_create_supabase_lead_id CHAMADA: phone='{phone}', lead_info: {lead_info}")
 
         if not phone:
-            # Se o lead já tem um ID no Supabase, usar esse ID
+            # SEMPRE usar ID existente se disponível, NUNCA criar leads sem telefone
             if lead_info.get("id"):
-                emoji_logger.service_warning(f"🔍 Lead sem telefone mas com ID existente: {lead_info.get('id')}")
+                emoji_logger.service_warning(f"🔍 Lead sem telefone mas com ID existente: {lead_info.get('id')} - USANDO ID EXISTENTE")
                 return str(lead_info["id"])
 
-            # Se não tem telefone nem ID, é erro crítico - não criar lead inválido
-            emoji_logger.service_error(f"❌ ERRO: Tentativa de criar lead sem telefone nem ID válido: {lead_info}")
-            raise ValueError("Não é possível criar lead sem telefone nem ID existente")
+            # Se não tem telefone nem ID, retornar erro sem criar lead
+            emoji_logger.service_error(f"❌ BLOQUEADO: Tentativa de criar lead sem telefone nem ID válido: {lead_info}")
+            return None  # Retornar None ao invés de criar lead inválido
         existing_lead = await supabase_client.get_lead_by_phone(phone)
         if existing_lead:
             kommo_id = lead_info.get("id")
