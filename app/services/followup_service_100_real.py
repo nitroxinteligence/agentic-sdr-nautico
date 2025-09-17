@@ -451,26 +451,42 @@ class FollowUpServiceReal:
 
         emoji_logger.service_error(f"🔍 _get_or_create_supabase_lead_id CHAMADA: phone='{phone}', lead_info: {lead_info}")
 
+        # LOGS ULTRA DETALHADOS para debug
+        import traceback
+        stack_trace = ''.join(traceback.format_stack()[-3:])  # Últimas 3 chamadas
+        emoji_logger.service_error(f"🔍 STACK TRACE: {stack_trace}")
+
         # CORREÇÃO CRÍTICA: Se lead_info tem ID do Kommo, buscar o ID do Supabase correspondente
         kommo_id = lead_info.get("id")
         if kommo_id:
             emoji_logger.service_warning(f"🔍 Lead tem Kommo ID: {kommo_id} - BUSCANDO ID SUPABASE CORRESPONDENTE")
 
             # Buscar lead pelo kommo_lead_id
+            emoji_logger.service_error(f"🔍 CHAMANDO get_lead_by_kommo_id com: {str(kommo_id)}")
             existing_lead = await supabase_client.get_lead_by_kommo_id(str(kommo_id))
+            emoji_logger.service_error(f"🔍 RESULTADO get_lead_by_kommo_id: {existing_lead}")
+
             if existing_lead:
-                emoji_logger.service_info(f"✅ Encontrado lead Supabase ID: {existing_lead['id']} para Kommo ID: {kommo_id}")
-                return existing_lead["id"]
+                result_id = existing_lead["id"]
+                emoji_logger.service_info(f"✅ Encontrado lead Supabase ID: {result_id} para Kommo ID: {kommo_id}")
+                emoji_logger.service_error(f"🚀 RETORNANDO ID: {result_id}")
+                return result_id
 
             # Se não encontrou pelo Kommo ID, tentar pelo telefone
             if phone:
+                emoji_logger.service_error(f"🔍 CHAMANDO get_lead_by_phone com: {phone}")
                 phone_lead = await supabase_client.get_lead_by_phone(phone)
+                emoji_logger.service_error(f"🔍 RESULTADO get_lead_by_phone: {phone_lead}")
+
                 if phone_lead:
-                    emoji_logger.service_info(f"✅ Encontrado lead por telefone - Supabase ID: {phone_lead['id']}")
+                    result_id = phone_lead["id"]
+                    emoji_logger.service_info(f"✅ Encontrado lead por telefone - Supabase ID: {result_id}")
                     # Atualizar com o kommo_id se necessário
                     if phone_lead.get("kommo_lead_id") != str(kommo_id):
-                        await supabase_client.update_lead(phone_lead["id"], {"kommo_lead_id": str(kommo_id)})
-                    return phone_lead["id"]
+                        emoji_logger.service_error(f"🔧 Atualizando lead {result_id} com kommo_id: {kommo_id}")
+                        await supabase_client.update_lead(result_id, {"kommo_lead_id": str(kommo_id)})
+                    emoji_logger.service_error(f"🚀 RETORNANDO ID (phone): {result_id}")
+                    return result_id
 
         # Se não tem telefone válido E não tem ID, BLOQUEAR criação
         if not phone or len(phone.strip()) < 10:
