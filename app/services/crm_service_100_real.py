@@ -306,7 +306,7 @@ class CRMServiceReal:
                             }]
                         })
                 else:
-                    emoji_logger.system_error(f"🚫 BLOQUEADO: Tentativa de criar lead no CRM com phone_number inválido: {phone_value}")
+                    emoji_logger.system_error("CRM_PHONE_BLOCKED", f"🚫 BLOQUEADO: Tentativa de criar lead no CRM com phone_number inválido: {phone_value}")
                     raise ValueError(f"Número de telefone inválido para CRM: {phone_value}")
             if lead_data.get("bill_value"):
                 custom_fields.append({

@@ -226,7 +226,7 @@ class SupabaseClient:
             result = self.client.table('leads').delete().eq('id', lead_id).execute()
             return True
         except Exception as e:
-            emoji_logger.system_error(f"Erro ao deletar lead {lead_id}: {e}")
+            emoji_logger.system_error("DELETE_LEAD", f"Erro ao deletar lead {lead_id}: {e}")
             raise
 
     @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
@@ -236,7 +236,7 @@ class SupabaseClient:
             result = self.client.table('messages').delete().eq('lead_id', lead_id).execute()
             return True
         except Exception as e:
-            emoji_logger.system_error(f"Erro ao deletar mensagens do lead {lead_id}: {e}")
+            emoji_logger.system_error("DELETE_MESSAGES", f"Erro ao deletar mensagens do lead {lead_id}: {e}")
             raise
 
     @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
@@ -246,7 +246,7 @@ class SupabaseClient:
             result = self.client.table('conversations').delete().eq('phone_number', phone).execute()
             return True
         except Exception as e:
-            emoji_logger.system_error(f"Erro ao deletar conversa para {phone}: {e}")
+            emoji_logger.system_error("DELETE_CONVERSATION", f"Erro ao deletar conversa para {phone}: {e}")
             raise
 
     @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
@@ -256,7 +256,7 @@ class SupabaseClient:
             result = self.client.table('follow_ups').delete().eq('lead_id', lead_id).execute()
             return True
         except Exception as e:
-            emoji_logger.system_error(f"Erro ao deletar follow-ups do lead {lead_id}: {e}")
+            emoji_logger.system_error("DELETE_FOLLOWUPS", f"Erro ao deletar follow-ups do lead {lead_id}: {e}")
             raise
 
     @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
@@ -266,7 +266,7 @@ class SupabaseClient:
             result = self.client.table('leads_qualifications').delete().eq('lead_id', lead_id).execute()
             return True
         except Exception as e:
-            emoji_logger.system_error(f"Erro ao deletar qualificações do lead {lead_id}: {e}")
+            emoji_logger.system_error("DELETE_QUALIFICATIONS", f"Erro ao deletar qualificações do lead {lead_id}: {e}")
             raise
 
     @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
@@ -279,7 +279,7 @@ class SupabaseClient:
             ).execute()
             return True
         except Exception as e:
-            emoji_logger.system_error(f"Erro ao deletar analytics para {phone}: {e}")
+            emoji_logger.system_error("DELETE_ANALYTICS", f"Erro ao deletar analytics para {phone}: {e}")
             # Não fazer raise para analytics, pois pode não existir a coluna
             return False
 
@@ -518,12 +518,12 @@ class SupabaseClient:
                         emergency_lead = emergency_response.data[0]
                         correct_supabase_id = emergency_lead['id']
                         follow_up_data['lead_id'] = correct_supabase_id
-                        emoji_logger.system_error(f"✅ ANTI-KOMMO SUCCESS: UUID Kommo {lead_id} → Supabase {correct_supabase_id}")
+                        emoji_logger.system_error("ANTI_KOMMO_SUCCESS", f"✅ ANTI-KOMMO SUCCESS: UUID Kommo {lead_id} → Supabase {correct_supabase_id}")
                         lead_id = correct_supabase_id
                     else:
                         raise ValueError(f"ANTI-KOMMO: Nenhum lead encontrado para phone {clean_phone}")
                 except Exception as e:
-                    emoji_logger.system_error(f"❌ ANTI-KOMMO ERROR: {e}")
+                    emoji_logger.system_error("ANTI_KOMMO_ERROR", f"❌ ANTI-KOMMO ERROR: {e}")
                     raise ValueError(f"ANTI-KOMMO: Falha ao corrigir UUID Kommo {lead_id}")
             else:
                 raise ValueError(f"ANTI-KOMMO: UUID Kommo {lead_id} sem phone para correção")
@@ -532,7 +532,7 @@ class SupabaseClient:
             # Verificar se o lead existe na tabela leads
             lead_check = self.client.table('leads').select('id').eq('id', lead_id).execute()
             if not lead_check.data:
-                emoji_logger.system_error(f"🚫 LEAD NÃO EXISTE: {lead_id} - BUSCANDO SUBSTITUTO")
+                emoji_logger.system_error("LEAD_NOT_EXISTS", f"🚫 LEAD NÃO EXISTE: {lead_id} - BUSCANDO SUBSTITUTO")
 
                 # CORREÇÃO NUCLEAR: Buscar lead correto pelo phone
                 if phone_number:
@@ -547,7 +547,7 @@ class SupabaseClient:
                             correct_lead = phone_response.data[0]
                             correct_lead_id = correct_lead['id']
 
-                            emoji_logger.system_error(f"✅ CORREÇÃO NUCLEAR: Substituindo {lead_id} por {correct_lead_id}")
+                            emoji_logger.system_error("NUCLEAR_CORRECTION", f"✅ CORREÇÃO NUCLEAR: Substituindo {lead_id} por {correct_lead_id}")
 
                             # SUBSTITUIR o lead_id nos dados
                             follow_up_data['lead_id'] = correct_lead_id
@@ -559,21 +559,21 @@ class SupabaseClient:
                                 latest_lead = latest_response.data[0]
                                 latest_lead_id = latest_lead['id']
 
-                                emoji_logger.system_error(f"⚠️ ÚLTIMO RECURSO: Usando lead mais recente {latest_lead_id}")
+                                emoji_logger.system_error("LAST_RESORT", f"⚠️ ÚLTIMO RECURSO: Usando lead mais recente {latest_lead_id}")
                                 follow_up_data['lead_id'] = latest_lead_id
                             else:
                                 raise ValueError(f"NUCLEAR: Nenhum lead encontrado para substituir {lead_id}")
 
                     except Exception as e:
-                        emoji_logger.system_error(f"❌ ERRO NA CORREÇÃO NUCLEAR: {e}")
+                        emoji_logger.system_error("NUCLEAR_CORRECTION_ERROR", f"❌ ERRO NA CORREÇÃO NUCLEAR: {e}")
                         raise ValueError(f"NUCLEAR: Falha ao corrigir lead_id {lead_id}")
                 else:
                     raise ValueError(f"NUCLEAR: Lead ID {lead_id} não existe e sem phone para busca")
             else:
-                emoji_logger.system_error(f"✅ LEAD VÁLIDO: {lead_id}")
+                emoji_logger.system_error("LEAD_VALID", f"✅ LEAD VÁLIDO: {lead_id}")
 
         # Log final dos dados corretos
-        emoji_logger.system_error(f"🚀 DADOS FINAIS: {follow_up_data}")
+        emoji_logger.system_error("FINAL_DATA", f"🚀 DADOS FINAIS: {follow_up_data}")
 
         follow_up_data['created_at'] = datetime.now().isoformat()
         follow_up_data['updated_at'] = datetime.now().isoformat()
@@ -582,11 +582,11 @@ class SupabaseClient:
         final_lead_id = follow_up_data.get('lead_id')
         final_phone = follow_up_data.get('phone_number', '')
 
-        emoji_logger.system_error(f"🚨 NUCLEAR ABSOLUTO: Verificando lead_id={final_lead_id} para phone={final_phone}")
+        emoji_logger.system_error("NUCLEAR_CHECK", f"🚨 NUCLEAR ABSOLUTO: Verificando lead_id={final_lead_id} para phone={final_phone}")
 
         # CORREÇÃO DINÂMICA UNIVERSAL para QUALQUER phone
         if final_phone:
-            emoji_logger.system_error(f"🚨 DINÂMICA UNIVERSAL: Detectado phone {final_phone} - aplicando correção")
+            emoji_logger.system_error("DYNAMIC_UNIVERSAL", f"🚨 DINÂMICA UNIVERSAL: Detectado phone {final_phone} - aplicando correção")
             try:
                 # BUSCA DIRETA por phone
                 universal_response = self.client.table('leads').select('*').eq('phone_number', final_phone).order('created_at', desc=True).limit(1).execute()
@@ -595,39 +595,39 @@ class SupabaseClient:
                     correct_universal_id = universal_lead['id']
                     old_universal_id = follow_up_data.get('lead_id')
                     follow_up_data['lead_id'] = correct_universal_id
-                    emoji_logger.system_error(f"🚨 DINÂMICA SUBSTITUIÇÃO: {old_universal_id} → {correct_universal_id}")
-                    emoji_logger.system_error(f"🚨 DINÂMICA LEAD: {universal_lead.get('name', 'Sem nome')} (Kommo: {universal_lead.get('kommo_lead_id')})")
+                    emoji_logger.system_error("DYNAMIC_SUBSTITUTION", f"🚨 DINÂMICA SUBSTITUIÇÃO: {old_universal_id} → {correct_universal_id}")
+                    emoji_logger.system_error("DYNAMIC_LEAD", f"🚨 DINÂMICA LEAD: {universal_lead.get('name', 'Sem nome')} (Kommo: {universal_lead.get('kommo_lead_id')})")
 
                     # VERIFICAÇÃO DINÂMICA
                     dynamic_check = self.client.table('leads').select('id').eq('id', correct_universal_id).execute()
                     if dynamic_check.data:
-                        emoji_logger.system_error(f"✅ DINÂMICA CHECK: Lead {correct_universal_id} CONFIRMADO")
+                        emoji_logger.system_error("DYNAMIC_CHECK", f"✅ DINÂMICA CHECK: Lead {correct_universal_id} CONFIRMADO")
                     else:
-                        emoji_logger.system_error(f"❌ DINÂMICA ERRO: Lead {correct_universal_id} não existe!")
+                        emoji_logger.system_error("DYNAMIC_ERROR", f"❌ DINÂMICA ERRO: Lead {correct_universal_id} não existe!")
                         raise ValueError(f"DINÂMICA: Lead correto {correct_universal_id} não encontrado")
                 else:
-                    emoji_logger.system_error(f"❌ DINÂMICA: Nenhum lead encontrado para phone {final_phone}")
+                    emoji_logger.system_error("DYNAMIC_ERROR", f"❌ DINÂMICA: Nenhum lead encontrado para phone {final_phone}")
 
                     # BUSCA LIKE pelos últimos dígitos
                     if len(final_phone) >= 8:
                         last_digits = final_phone[-8:]
-                        emoji_logger.system_error(f"🔍 DINÂMICA LIKE: Buscando por últimos 8 dígitos: {last_digits}")
+                        emoji_logger.system_error("DYNAMIC_LIKE", f"🔍 DINÂMICA LIKE: Buscando por últimos 8 dígitos: {last_digits}")
                         like_response = self.client.table('leads').select('*').like('phone_number', f'%{last_digits}%').order('created_at', desc=True).limit(1).execute()
                         if like_response.data:
                             like_lead = like_response.data[0]
                             like_id = like_lead['id']
                             old_like_id = follow_up_data.get('lead_id')
                             follow_up_data['lead_id'] = like_id
-                            emoji_logger.system_error(f"🚨 DINÂMICA LIKE SUBSTITUIÇÃO: {old_like_id} → {like_id}")
+                            emoji_logger.system_error("LIKE_SUBSTITUTION", f"🚨 DINÂMICA LIKE SUBSTITUIÇÃO: {old_like_id} → {like_id}")
 
             except Exception as e:
-                emoji_logger.system_error(f"❌ ERRO DINÂMICA UNIVERSAL: {e}")
+                emoji_logger.system_error("DYNAMIC_UNIVERSAL_ERROR", f"❌ ERRO DINÂMICA UNIVERSAL: {e}")
 
         # Verificação final de segurança
         current_lead_id = follow_up_data.get('lead_id')
         final_check = self.client.table('leads').select('id').eq('id', current_lead_id).execute()
         if not final_check.data:
-            emoji_logger.system_error(f"🚫 NUCLEAR: Lead {current_lead_id} AINDA não existe! ÚLTIMA CORREÇÃO")
+            emoji_logger.system_error("NUCLEAR_STILL_NOT_EXISTS", f"🚫 NUCLEAR: Lead {current_lead_id} AINDA não existe! ÚLTIMA CORREÇÃO")
 
             # ÚLTIMO RECURSO: Lead mais recente
             ultimate_response = self.client.table('leads').select('*').order('created_at', desc=True).limit(1).execute()
@@ -635,9 +635,9 @@ class SupabaseClient:
                 ultimate_lead = ultimate_response.data[0]
                 ultimate_id = ultimate_lead['id']
                 follow_up_data['lead_id'] = ultimate_id
-                emoji_logger.system_error(f"⚠️ NUCLEAR ÚLTIMO RECURSO: Usando {ultimate_id}")
+                emoji_logger.system_error("NUCLEAR_LAST_RESORT", f"⚠️ NUCLEAR ÚLTIMO RECURSO: Usando {ultimate_id}")
 
-        emoji_logger.system_error(f"🚀 NUCLEAR FINAL: Inserindo follow-up com lead_id={follow_up_data.get('lead_id')}")
+        emoji_logger.system_error("NUCLEAR_FINAL", f"🚀 NUCLEAR FINAL: Inserindo follow-up com lead_id={follow_up_data.get('lead_id')}")
 
         result = self.client.table('follow_ups').insert(
             follow_up_data

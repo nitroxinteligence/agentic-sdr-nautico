@@ -637,7 +637,7 @@ class AgenticSDRStateless:
                     else:
                         emoji_logger.system_debug(f"🧠 Conhecimento não salvo (normal - filtros aplicados)")
                 except Exception as e:
-                    emoji_logger.system_error(f"❌ Erro no aprendizado automático: {e}")
+                    emoji_logger.system_error("AUTO_LEARNING_ERROR", f"❌ Erro no aprendizado automático: {e}")
 
             emoji_logger.agentic_success(
                 f"✅ AGENTE STATELESS CONCLUÍDO - {phone}: "
@@ -773,7 +773,7 @@ class AgenticSDRStateless:
                                 )
                                 
                         except Exception as e:
-                            emoji_logger.system_error(f"Erro na qualificação automática: {e}")
+                            emoji_logger.system_error("AUTO_QUALIFICATION_ERROR", f"Erro na qualificação automática: {e}")
             else:
                 emoji_logger.system_warning(f"Falha na extração de texto da mídia: {media_result.get('message')}")
 
@@ -920,7 +920,7 @@ class AgenticSDRStateless:
                         # Atualizar lead_info com dados atualizados
                         lead_info.update(result.get("updated_lead_info", {}))
                     else:
-                        emoji_logger.system_error(f"Erro ao qualificar lead: {result.get('message')}")
+                        emoji_logger.system_error("LEAD_QUALIFICATION_ERROR", f"Erro ao qualificar lead: {result.get('message')}")
             else:
                 # Log para detectar tentativas de qualificação sem validação
                 payment_indicators = [

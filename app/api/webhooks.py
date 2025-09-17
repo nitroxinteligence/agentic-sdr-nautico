@@ -838,7 +838,7 @@ async def whatsapp_dynamic_webhook(
         return {"status": "ok", "event": event}
 
     except Exception as e:
-        emoji_logger.system_error(f"Webhook WhatsApp {event_type}", str(e))
+        emoji_logger.system_error("WEBHOOK_WHATSAPP", f"Webhook WhatsApp {event_type}: {str(e)}")
         return {"status": "error", "message": str(e)}
 
 
