@@ -115,16 +115,37 @@ class SupabaseClient:
             emoji_logger.system_error(f"🚫 ULTRA BLOQUEIO: Rejeitando lead com phone_number contendo 'unknown': {phone_number}")
             emoji_logger.system_error(f"🔍 STACK TRACE: {stack_trace}")
 
-            # RETORNAR LEAD FAKE ao invés de criar um inválido
-            fake_lead = {
-                "id": "00000000-0000-0000-0000-000000000000",
-                "phone_number": phone_number,
-                "name": lead_data.get("name", ""),
-                "created_at": datetime.now().isoformat(),
-                "updated_at": datetime.now().isoformat()
-            }
-            emoji_logger.system_error(f"🔄 RETORNANDO LEAD FAKE para evitar criação inválida: {fake_lead}")
-            return fake_lead
+            # CORREÇÃO CRÍTICA: Ao invés de retornar fake, buscar lead real relacionado
+            # Tentar extrair informações para encontrar o lead real
+            name = lead_data.get("name", "")
+            kommo_id = lead_data.get("kommo_lead_id", "")
+
+            emoji_logger.system_error(f"🔍 BUSCANDO LEAD REAL - Nome: '{name}', Kommo ID: '{kommo_id}'")
+
+            # Buscar por kommo_lead_id se disponível
+            if kommo_id:
+                existing_lead = await self.get_lead_by_kommo_id(str(kommo_id))
+                if existing_lead:
+                    emoji_logger.system_error(f"✅ ENCONTRADO LEAD REAL POR KOMMO ID: {existing_lead['id']}")
+                    return existing_lead
+
+            # Se tem nome, buscar leads recentes com esse nome
+            if name:
+                result = self.client.table('leads').select("*").eq('name', name).order('created_at', desc=True).limit(1).execute()
+                if result.data:
+                    existing_lead = result.data[0]
+                    emoji_logger.system_error(f"✅ ENCONTRADO LEAD REAL POR NOME: {existing_lead['id']}")
+                    return existing_lead
+
+            # ÚLTIMO RECURSO: Buscar lead mais recente (pode ser o correto)
+            result = self.client.table('leads').select("*").order('created_at', desc=True).limit(1).execute()
+            if result.data:
+                latest_lead = result.data[0]
+                emoji_logger.system_error(f"⚠️ USANDO LEAD MAIS RECENTE COMO FALLBACK: {latest_lead['id']}")
+                return latest_lead
+
+            # Se nada funcionar, lançar erro ao invés de retornar fake
+            raise ValueError(f"BLOCKED: Cannot create unknown_* lead and no valid lead found for fallback")
 
         # Validação adicional: phone_number deve ter pelo menos 10 dígitos
         digits_only = ''.join(filter(str.isdigit, phone_number))

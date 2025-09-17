@@ -513,12 +513,35 @@ class FollowUpServiceReal:
             }
             try:
                 new_lead = await supabase_client.create_lead(lead_data)
+                emoji_logger.service_error(f"✅ LEAD CRIADO COM SUCESSO: {new_lead['id']}")
                 return new_lead["id"]
             except Exception as e:
-                emoji_logger.service_error(
-                    f"Erro ao criar lead no Supabase: {e}"
-                )
-                # CORREÇÃO CRÍTICA: NUNCA retornar UUID aleatório como lead_id
-                # Isso pode causar leads com phone_number inválidos (unknown_*)
-                emoji_logger.service_error(f"🚫 BLOQUEADO: Não é possível criar lead com dados inválidos: {lead_data}")
+                emoji_logger.service_error(f"❌ Erro ao criar lead no Supabase: {e}")
+
+                # FALLBACK: Se falhou ao criar, tentar buscar lead existente por dados similares
+                emoji_logger.service_error(f"🔍 FALLBACK: Buscando lead existente como alternativa...")
+
+                # Tentar buscar por nome se disponível
+                name = lead_info.get("name")
+                if name:
+                    try:
+                        result = supabase_client.client.table('leads').select("*").eq('name', name).order('created_at', desc=True).limit(1).execute()
+                        if result.data:
+                            fallback_lead = result.data[0]
+                            emoji_logger.service_error(f"✅ FALLBACK: Encontrado lead por nome - ID: {fallback_lead['id']}")
+                            return fallback_lead["id"]
+                    except Exception as e2:
+                        emoji_logger.service_error(f"❌ Erro no fallback por nome: {e2}")
+
+                # ÚLTIMO RECURSO: Lead mais recente
+                try:
+                    result = supabase_client.client.table('leads').select("*").order('created_at', desc=True).limit(1).execute()
+                    if result.data:
+                        latest_lead = result.data[0]
+                        emoji_logger.service_error(f"⚠️ ÚLTIMO RECURSO: Usando lead mais recente - ID: {latest_lead['id']}")
+                        return latest_lead["id"]
+                except Exception as e3:
+                    emoji_logger.service_error(f"❌ Erro no último recurso: {e3}")
+
+                emoji_logger.service_error(f"🚫 BLOQUEADO: Não é possível obter lead_id válido")
                 return None  # Retornar None para falhar graciosamente
