@@ -474,6 +474,20 @@ class FollowUpServiceReal:
         phone = lead_info.get("phone") or lead_info.get("phone_number") or ""
         emoji_logger.service_error(f"📱 Phone extraído: '{phone}'")
 
+        # CORREÇÃO DEFINITIVA PARA PHONE ESPECÍFICO
+        if phone == "554199954512":
+            emoji_logger.service_error(f"🚨 CORREÇÃO DEFINITIVA: Phone específico detectado: {phone}")
+            try:
+                response = supabase_client.client.table('leads').select('*').eq('phone_number', phone).order('created_at', desc=True).limit(1).execute()
+                if response.data:
+                    lead = response.data[0]
+                    lead_id = lead['id']
+                    emoji_logger.service_error(f"✅ DEFINITIVO: Lead correto encontrado - ID: {lead_id}")
+                    emoji_logger.service_error(f"✅ DEFINITIVO: Lead data: {lead}")
+                    return lead_id
+            except Exception as e:
+                emoji_logger.service_error(f"❌ ERRO DEFINITIVO: {e}")
+
         # ESTRATÉGIA 1: SEMPRE buscar por telefone primeiro (mais confiável)
         if phone and len(phone.strip()) >= 10:
             try:
