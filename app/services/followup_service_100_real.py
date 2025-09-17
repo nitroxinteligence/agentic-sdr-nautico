@@ -468,4 +468,7 @@ class FollowUpServiceReal:
                 emoji_logger.service_error(
                     f"Erro ao criar lead no Supabase: {e}"
                 )
-                return str(uuid4())
+                # CORREÇÃO CRÍTICA: NUNCA retornar UUID aleatório como lead_id
+                # Isso pode causar leads com phone_number inválidos (unknown_*)
+                emoji_logger.service_error(f"🚫 BLOQUEADO: Não é possível criar lead com dados inválidos: {lead_data}")
+                return None  # Retornar None para falhar graciosamente
