@@ -468,7 +468,15 @@ class FollowUpServiceReal:
         """VERSÃO DRÁSTICA: Busca SEMPRE por phone primeiro, garante ID válido"""
         from app.integrations.supabase_client import supabase_client
 
-        emoji_logger.service_error(f"🚨 FUNÇÃO DRÁSTICA: {lead_info}")
+        emoji_logger.service_error(f"🚨 FUNÇÃO DRÁSTICA - LEAD INFO RECEBIDO: {lead_info}")
+
+        # ANÁLISE DETALHADA do lead_info recebido
+        emoji_logger.service_error(f"📋 ANÁLISE LEAD_INFO:")
+        emoji_logger.service_error(f"   - lead_info.get('id'): {lead_info.get('id')} (tipo: {type(lead_info.get('id'))})")
+        emoji_logger.service_error(f"   - lead_info.get('kommo_lead_id'): {lead_info.get('kommo_lead_id')} (tipo: {type(lead_info.get('kommo_lead_id'))})")
+        emoji_logger.service_error(f"   - lead_info.get('phone'): {lead_info.get('phone')}")
+        emoji_logger.service_error(f"   - lead_info.get('phone_number'): {lead_info.get('phone_number')}")
+        emoji_logger.service_error(f"   - lead_info.get('name'): {lead_info.get('name')}")
 
         # Buscar telefone
         phone = lead_info.get("phone") or lead_info.get("phone_number") or ""
@@ -543,20 +551,30 @@ class FollowUpServiceReal:
             except Exception as e:
                 emoji_logger.service_error(f"❌ ERRO BUSCA 1: {e}")
 
-        # ESTRATÉGIA 2: Buscar por Kommo ID
-        kommo_id = lead_info.get("id")
+        # ESTRATÉGIA 2: Buscar por Kommo ID - CORREÇÃO CRITICAL
+        # IMPORTANTE: lead_info.get("id") é o UUID do Kommo, não o kommo_lead_id que é integer
+        kommo_id = lead_info.get("kommo_lead_id") or lead_info.get("id")  # Tentar kommo_lead_id primeiro
         if kommo_id:
             try:
-                emoji_logger.service_error(f"🔍 BUSCA 2: Por Kommo ID '{kommo_id}'")
-                existing_lead = await supabase_client.get_lead_by_kommo_id(str(kommo_id))
-                if existing_lead:
-                    lead_id = existing_lead["id"]
-                    emoji_logger.service_error(f"✅ SUCESSO 2: Lead encontrado por Kommo - ID: {lead_id}")
-                    return lead_id
+                emoji_logger.service_error(f"🔍 BUSCA 2 CORRIGIDA: Por Kommo ID '{kommo_id}' (tipo: {type(kommo_id)})")
+
+                # CRITICAL FIX: Se for UUID (string longa), não usar
+                if isinstance(kommo_id, str) and len(kommo_id) > 20 and '-' in kommo_id:
+                    emoji_logger.service_error(f"⚠️ DETECTADO UUID DO KOMMO: {kommo_id} - IGNORANDO")
+                    kommo_id = None
+
+                if kommo_id:
+                    existing_lead = await supabase_client.get_lead_by_kommo_id(str(kommo_id))
+                    if existing_lead:
+                        lead_id = existing_lead["id"]
+                        emoji_logger.service_error(f"✅ SUCESSO 2 CORRIGIDO: Lead encontrado por Kommo ID {kommo_id} → Supabase ID: {lead_id}")
+                        return lead_id
+                    else:
+                        emoji_logger.service_error(f"❌ BUSCA 2 CORRIGIDA: Nenhum lead encontrado por Kommo ID {kommo_id}")
                 else:
-                    emoji_logger.service_error(f"❌ BUSCA 2: Nenhum lead encontrado por Kommo ID")
+                    emoji_logger.service_error(f"❌ BUSCA 2: Kommo ID inválido (UUID detectado)")
             except Exception as e:
-                emoji_logger.service_error(f"❌ ERRO BUSCA 2: {e}")
+                emoji_logger.service_error(f"❌ ERRO BUSCA 2 CORRIGIDA: {e}")
 
         # ESTRATÉGIA 3: Buscar por nome (se disponível)
         name = lead_info.get("name")
