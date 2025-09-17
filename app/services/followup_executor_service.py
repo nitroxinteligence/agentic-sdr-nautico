@@ -6,7 +6,7 @@ Este serviço agora APENAS enfileira tarefas no Redis, não as executa.
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from app.integrations.supabase_client import SupabaseClient
+from app.integrations.supabase_client import supabase_client
 from app.config import settings
 from app.utils.logger import emoji_logger
 from app.integrations.redis_client import redis_client
@@ -20,7 +20,7 @@ class FollowUpSchedulerService:
     """
 
     def __init__(self):
-        self.db = SupabaseClient()
+        self.db = supabase_client
         self.redis = redis_client
         self.running = False
         self.check_interval = 60  # Aumentado de 15s para 60s para reduzir spam

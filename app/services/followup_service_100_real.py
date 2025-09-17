@@ -10,7 +10,7 @@ import aiohttp
 import pytz
 from app.utils.logger import emoji_logger
 from app.config import settings
-from app.integrations.supabase_client import SupabaseClient
+from app.integrations.supabase_client import supabase_client
 
 
 class FollowUpServiceReal:
@@ -31,7 +31,7 @@ class FollowUpServiceReal:
             "apikey": self.api_key,
             "Content-Type": "application/json"
         }
-        self.db = SupabaseClient()
+        self.db = supabase_client
         self._session_timeout = aiohttp.ClientTimeout(total=30)
 
     async def _get_session(self):

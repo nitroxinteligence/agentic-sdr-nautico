@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import asyncio
 from app.utils.logger import emoji_logger
-from app.integrations.supabase_client import SupabaseClient # Manter para get_lead_by_phone
+from app.integrations.supabase_client import supabase_client
 from app.integrations.redis_client import redis_client
 from app.services.followup_manager import followup_manager_service
 
@@ -20,7 +20,7 @@ class ConversationMonitor:
 
     def __init__(self):
         """Inicializa o monitor de conversas"""
-        self.db = SupabaseClient() # Manter para buscar lead_info
+        self.db = supabase_client
         self.redis = redis_client
         self.is_monitoring = False
 

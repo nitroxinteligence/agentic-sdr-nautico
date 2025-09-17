@@ -6,7 +6,7 @@ import asyncio
 from typing import Dict, Any
 
 from app.integrations.redis_client import redis_client
-from app.integrations.supabase_client import SupabaseClient
+from app.integrations.supabase_client import supabase_client
 from app.agents.agentic_sdr_stateless import AgenticSDRStateless
 from app.utils.logger import emoji_logger
 from loguru import logger
@@ -19,7 +19,7 @@ class FollowUpWorker:
 
     def __init__(self):
         self.redis = redis_client
-        self.db = SupabaseClient()
+        self.db = supabase_client
         self.running = False
         self.agent = AgenticSDRStateless()
 

@@ -22,16 +22,49 @@ class SupabaseClient:
         """Inicializa o cliente Supabase"""
         # Usar supabase_key ou supabase_service_key dependendo da disponibilidade
         supabase_key = settings.supabase_key or settings.supabase_service_key
-        
+
         if not settings.supabase_url:
             raise Exception("supabase_url is required")
         if not supabase_key:
             raise Exception("supabase_key is required")
-            
+
         self.client: Client = create_client(
             supabase_url=settings.supabase_url,
             supabase_key=supabase_key
         )
+
+        # Interceptar operações na tabela leads para validação extra
+        self._original_table = self.client.table
+        self.client.table = self._intercepted_table
+
+    def _intercepted_table(self, table_name: str):
+        """Intercepta operações na tabela para validação extra"""
+        table = self._original_table(table_name)
+
+        if table_name == "leads":
+            # Interceptar método insert para validação
+            original_insert = table.insert
+
+            def validated_insert(data):
+                # Validação crítica antes de qualquer inserção na tabela leads
+                if isinstance(data, dict):
+                    phone_number = data.get('phone_number', '')
+                    if phone_number and str(phone_number).startswith('unknown_'):
+                        emoji_logger.system_error(f"🚫 INTERCEPTED: Blocked unknown_* lead insertion: {phone_number}")
+                        raise ValueError(f"BLOCKED: Cannot insert lead with unknown_* phone_number: {phone_number}")
+                elif isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict):
+                            phone_number = item.get('phone_number', '')
+                            if phone_number and str(phone_number).startswith('unknown_'):
+                                emoji_logger.system_error(f"🚫 INTERCEPTED: Blocked unknown_* lead insertion: {phone_number}")
+                                raise ValueError(f"BLOCKED: Cannot insert lead with unknown_* phone_number: {phone_number}")
+
+                return original_insert(data)
+
+            table.insert = validated_insert
+
+        return table
 
     async def test_connection(self) -> bool:
         """Testa conexão com o Supabase"""
