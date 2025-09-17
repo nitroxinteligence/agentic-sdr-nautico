@@ -433,15 +433,16 @@ class FollowUpServiceReal:
 
         emoji_logger.service_error(f"🔍 _get_or_create_supabase_lead_id CHAMADA: phone='{phone}', lead_info: {lead_info}")
 
-        if not phone:
-            # SEMPRE usar ID existente se disponível, NUNCA criar leads sem telefone
-            if lead_info.get("id"):
-                emoji_logger.service_warning(f"🔍 Lead sem telefone mas com ID existente: {lead_info.get('id')} - USANDO ID EXISTENTE")
-                return str(lead_info["id"])
+        # CORREÇÃO CRÍTICA: Se phone está vazio MAS lead já existe (tem ID),
+        # NUNCA criar novo lead - sempre retornar ID existente
+        if lead_info.get("id"):
+            emoji_logger.service_warning(f"🔍 Lead já existe com ID: {lead_info.get('id')} - RETORNANDO ID EXISTENTE")
+            return str(lead_info["id"])
 
-            # Se não tem telefone nem ID, retornar erro sem criar lead
-            emoji_logger.service_error(f"❌ BLOQUEADO: Tentativa de criar lead sem telefone nem ID válido: {lead_info}")
-            return None  # Retornar None ao invés de criar lead inválido
+        # Se não tem telefone válido E não tem ID, BLOQUEAR criação
+        if not phone or len(phone.strip()) < 10:
+            emoji_logger.service_error(f"❌ BLOQUEADO: Telefone inválido '{phone}' - NÃO CRIANDO LEAD")
+            return None
         existing_lead = await supabase_client.get_lead_by_phone(phone)
         if existing_lead:
             kommo_id = lead_info.get("id")
