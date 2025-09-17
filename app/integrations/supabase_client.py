@@ -449,6 +449,16 @@ class SupabaseClient:
             self, follow_up_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Cria um follow-up com retry automático"""
+
+        # VALIDAÇÃO CRÍTICA: Verificar se lead_id existe antes de criar follow-up
+        lead_id = follow_up_data.get('lead_id')
+        if lead_id:
+            # Verificar se o lead existe na tabela leads
+            lead_check = self.client.table('leads').select('id').eq('id', lead_id).execute()
+            if not lead_check.data:
+                emoji_logger.system_error(f"🚫 BLOCKED: Tentativa de criar follow-up com lead_id inexistente: {lead_id}")
+                raise ValueError(f"Lead ID {lead_id} não existe na tabela leads - follow-up bloqueado")
+
         follow_up_data['created_at'] = datetime.now().isoformat()
         follow_up_data['updated_at'] = datetime.now().isoformat()
 

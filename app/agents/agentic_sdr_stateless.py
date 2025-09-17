@@ -415,6 +415,15 @@ class AgenticSDRStateless:
             # ETAPA 0b: AGUARDANDO NOME - Processar resposta com nome
             elif conversation_state == 'waiting_name':
                 emoji_logger.system_debug(f"🔍 Analisando possível nome na mensagem: '{message}' | Lead: {lead_info.get('name')} | Audio sent: {lead_info.get('initial_audio_sent')}")
+
+                # CORREÇÃO: Verificar se lead tem nome mas stage está errado
+                current_stage = lead_info.get("current_stage", "").upper()
+                if lead_info.get("name") and current_stage == "AGUARDANDO_NOME":
+                    emoji_logger.system_info(f"🔧 CORREÇÃO: Lead tem nome '{lead_info.get('name')}' mas stage='AGUARDANDO_NOME' - atualizando para INTERESTED")
+                    await supabase_client.update_lead(lead_info["id"], {
+                        "current_stage": "INTERESTED"
+                    })
+                    lead_info["current_stage"] = "INTERESTED"
                 
                 # Verificar se é uma saudação inicial (deve reiniciar processo)
                 if self._is_initial_greeting(message):
@@ -437,13 +446,14 @@ class AgenticSDRStateless:
 
                 if extracted_name:
                     emoji_logger.agentic_success(f"👤 Nome coletado com sucesso: {extracted_name}")
-                    
+
                     # Atualizar lead no Supabase com nome e mover para INTERESTED
                     await supabase_client.update_lead(lead_info["id"], {
                         "name": extracted_name,
                         "current_stage": "INTERESTED"
                     })
                     lead_info["name"] = extracted_name
+                    lead_info["current_stage"] = "INTERESTED"
                     
                     # AGORA SIM: Criar no Kommo CRM com nome real
                     if self.crm_service:
