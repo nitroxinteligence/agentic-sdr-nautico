@@ -278,9 +278,14 @@ class KnowledgeService:
         Aprende automaticamente de interações interessantes
         """
         try:
+            logger.debug(f"🧠 Analisando para aprendizado: '{user_message[:30]}...'")
+
             # Verificar se é uma pergunta que vale a pena salvar
-            if ('?' in user_message or
-                any(word in user_message.lower() for word in ['como', 'que', 'qual', 'quando', 'onde', 'porque'])):
+            is_question = ('?' in user_message or
+                          any(word in user_message.lower() for word in ['como', 'que', 'qual', 'quando', 'onde', 'porque']))
+
+            if is_question:
+                logger.info(f"🧠 Pergunta detectada, tentando salvar conhecimento: '{user_message[:50]}...'")
 
                 # Tentar adicionar como conhecimento
                 success = await self.add_knowledge_from_conversation(
@@ -291,11 +296,14 @@ class KnowledgeService:
                 )
 
                 if success:
-                    logger.info(f"🧠 Aprendizado automático: {user_message[:30]}...")
+                    logger.info(f"🧠 ✅ Aprendizado automático salvo: {user_message[:30]}...")
+                else:
+                    logger.debug(f"🧠 ❌ Aprendizado não salvo (filtros aplicados): {user_message[:30]}...")
 
                 return success
-
-            return False
+            else:
+                logger.debug(f"🧠 Não é pergunta, ignorando: '{user_message[:30]}...'")
+                return False
 
         except Exception as e:
             logger.error(f"❌ Erro no aprendizado automático: {e}")

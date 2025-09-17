@@ -616,13 +616,18 @@ class AgenticSDRStateless:
             # NOVO: Aprendizado automático da knowledge_base
             if self.knowledge_service and len(message.strip()) > 10:
                 try:
-                    await self.knowledge_service.auto_learn_from_interaction(
+                    emoji_logger.system_debug(f"🧠 Tentando aprendizado automático: '{message[:50]}...'")
+                    learn_result = await self.knowledge_service.auto_learn_from_interaction(
                         user_message=message,
                         ai_response=final_response,
                         lead_info=lead_info
                     )
+                    if learn_result:
+                        emoji_logger.system_success(f"🧠 Conhecimento salvo automaticamente!")
+                    else:
+                        emoji_logger.system_debug(f"🧠 Conhecimento não salvo (normal - filtros aplicados)")
                 except Exception as e:
-                    emoji_logger.system_debug(f"Erro no aprendizado automático: {e}")
+                    emoji_logger.system_error(f"❌ Erro no aprendizado automático: {e}")
 
             emoji_logger.agentic_success(
                 f"✅ AGENTE STATELESS CONCLUÍDO - {phone}: "
@@ -1441,17 +1446,15 @@ class AgenticSDRStateless:
                     
                     # Marcar que o áudio foi enviado para evitar reenvios
                     lead_info["initial_audio_sent"] = True
-                    
-                    # Mover lead para "Em Qualificação" conforme prompt
-                    stage_result = await self.stage_tools.move_to_em_qualificacao(
-                        lead_info,
-                        notes="Áudio inicial enviado - Laura iniciando qualificação"
+
+                    # CORREÇÃO: NÃO mover automaticamente para "Em Qualificação"
+                    # Lead só deve ir para "Em Qualificação" após envio e validação de comprovante de pagamento
+                    # Por enquanto, manter como "INTERESTED" (interessado mas ainda não qualificado)
+                    lead_info["current_stage"] = "INTERESTED"
+                    emoji_logger.service_info(
+                        f"📋 Lead {lead_info.get('id')} mantido como INTERESTED - "
+                        "aguardando validação de pagamento para qualificação"
                     )
-                    
-                    if stage_result.get("success"):
-                        emoji_logger.service_success(
-                            f"✅ Lead {lead_info.get('id')} movido para Em Qualificação"
-                        )
                     
                     # Agendar follow-ups automáticos do Náutico
                     followup_result = await self.followup_nautico_tools.schedule_nautico_followups(
