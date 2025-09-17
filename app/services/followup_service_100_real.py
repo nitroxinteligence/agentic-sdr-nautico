@@ -482,50 +482,41 @@ class FollowUpServiceReal:
         phone = lead_info.get("phone") or lead_info.get("phone_number") or ""
         emoji_logger.service_error(f"📱 Phone extraído: '{phone}'")
 
-        # 🚨 CORREÇÃO BYPASS TOTAL - SEMPRE phone primeiro
+        # 🚨 CORREÇÃO DINÂMICA - SEMPRE phone primeiro para QUALQUER número
         if phone:
-            emoji_logger.service_error(f"🚨 BYPASS TOTAL: Forçando busca por phone '{phone}' PRIMEIRO")
+            emoji_logger.service_error(f"🚨 DINÂMICA: Forçando busca por phone '{phone}' (UNIVERSAL)")
             try:
-                direct_response = supabase_client.client.table('leads').select('*').eq('phone_number', phone).order('created_at', desc=True).limit(1).execute()
-                if direct_response.data:
-                    direct_lead = direct_response.data[0]
-                    direct_id = direct_lead['id']
-                    emoji_logger.service_error(f"✅ BYPASS SUCCESS: Lead por phone → {direct_id}")
-                    emoji_logger.service_error(f"✅ BYPASS LEAD: {direct_lead['name']} (Kommo: {direct_lead.get('kommo_lead_id')})")
+                # BUSCA DIRETA UNIVERSAL
+                dynamic_response = supabase_client.client.table('leads').select('*').eq('phone_number', phone).order('created_at', desc=True).limit(1).execute()
+                if dynamic_response.data:
+                    dynamic_lead = dynamic_response.data[0]
+                    dynamic_id = dynamic_lead['id']
+                    emoji_logger.service_error(f"✅ DINÂMICA SUCCESS: {phone} → {dynamic_id}")
+                    emoji_logger.service_error(f"✅ DINÂMICA LEAD: {dynamic_lead.get('name', 'Sem nome')} (Kommo: {dynamic_lead.get('kommo_lead_id')})")
 
-                    # VERIFICAÇÃO FINAL BYPASS
-                    verify_bypass = supabase_client.client.table('leads').select('id').eq('id', direct_id).execute()
-                    if verify_bypass.data:
-                        emoji_logger.service_error(f"✅ BYPASS VERIFIED: {direct_id} EXISTS")
-                        return direct_id
+                    # VERIFICAÇÃO DINÂMICA
+                    verify_dynamic = supabase_client.client.table('leads').select('id').eq('id', dynamic_id).execute()
+                    if verify_dynamic.data:
+                        emoji_logger.service_error(f"✅ DINÂMICA VERIFIED: {dynamic_id} EXISTS")
+                        return dynamic_id
                     else:
-                        emoji_logger.service_error(f"❌ BYPASS FAIL: {direct_id} NOT FOUND")
+                        emoji_logger.service_error(f"❌ DINÂMICA FAIL: {dynamic_id} NOT FOUND")
                 else:
-                    emoji_logger.service_error(f"❌ BYPASS: Nenhum lead encontrado para phone {phone}")
-            except Exception as e:
-                emoji_logger.service_error(f"❌ BYPASS ERROR: {e}")
+                    emoji_logger.service_error(f"❌ DINÂMICA: Nenhum lead encontrado para phone {phone}")
 
-        # CORREÇÃO ESPECÍFICA PARA 554199954512
-        if phone == "554199954512":
-            emoji_logger.service_error(f"🚨 HARD-CODED FIX: Phone 554199954512 detectado")
-            try:
-                # BUSCA DIRETA FORÇADA
-                hardcoded_response = supabase_client.client.table('leads').select('*').eq('phone_number', '554199954512').order('created_at', desc=True).limit(1).execute()
-                if hardcoded_response.data:
-                    hardcoded_lead = hardcoded_response.data[0]
-                    hardcoded_id = hardcoded_lead['id']
-                    emoji_logger.service_error(f"✅ HARD-CODED SUCCESS: {hardcoded_id}")
-                    return hardcoded_id
-                else:
-                    # BUSCA LIKE FORÇADA
-                    like_response = supabase_client.client.table('leads').select('*').like('phone_number', '%99954512%').order('created_at', desc=True).limit(1).execute()
-                    if like_response.data:
-                        like_lead = like_response.data[0]
-                        like_id = like_lead['id']
-                        emoji_logger.service_error(f"✅ HARD-CODED LIKE: {like_id}")
-                        return like_id
+                    # BUSCA LIKE DINÂMICA (últimos 8 dígitos)
+                    if len(phone) >= 8:
+                        last_digits = phone[-8:]
+                        emoji_logger.service_error(f"🔍 DINÂMICA LIKE: Buscando por últimos 8 dígitos: {last_digits}")
+                        like_response = supabase_client.client.table('leads').select('*').like('phone_number', f'%{last_digits}%').order('created_at', desc=True).limit(1).execute()
+                        if like_response.data:
+                            like_lead = like_response.data[0]
+                            like_id = like_lead['id']
+                            emoji_logger.service_error(f"✅ DINÂMICA LIKE SUCCESS: {like_id}")
+                            return like_id
+
             except Exception as e:
-                emoji_logger.service_error(f"❌ HARD-CODED ERROR: {e}")
+                emoji_logger.service_error(f"❌ DINÂMICA ERROR: {e}")
 
         # ESTRATÉGIA 1: SEMPRE buscar por telefone primeiro (mais confiável)
         if phone and len(phone.strip()) >= 10:
