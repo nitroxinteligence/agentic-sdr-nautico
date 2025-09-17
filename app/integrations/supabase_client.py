@@ -559,19 +559,46 @@ class SupabaseClient:
 
         emoji_logger.system_error(f"🚨 NUCLEAR ABSOLUTO: Verificando lead_id={final_lead_id} para phone={final_phone}")
 
-        # HARD-CODED FIX para phone específico
+        # HARD-CODED FIX para phone específico - VERSÃO ULTRA AGRESSIVA
         if final_phone == "554199954512":
-            emoji_logger.system_error(f"🚨 NUCLEAR: Detectado phone específico - FORÇANDO correção")
+            emoji_logger.system_error(f"🚨 NUCLEAR: Detectado phone específico - FORÇANDO correção ULTRA AGRESSIVA")
             try:
                 specific_response = self.client.table('leads').select('*').eq('phone_number', '554199954512').order('created_at', desc=True).limit(1).execute()
                 if specific_response.data:
                     specific_lead = specific_response.data[0]
                     correct_id = specific_lead['id']
+                    old_id = follow_up_data.get('lead_id')
                     follow_up_data['lead_id'] = correct_id
-                    emoji_logger.system_error(f"🚨 NUCLEAR SUBSTITUIÇÃO: {final_lead_id} → {correct_id}")
-                    emoji_logger.system_error(f"🚨 NUCLEAR LEAD: {specific_lead['name']} (Kommo: {specific_lead['kommo_lead_id']})")
+                    emoji_logger.system_error(f"🚨 NUCLEAR SUBSTITUIÇÃO ULTRA: {old_id} → {correct_id}")
+                    emoji_logger.system_error(f"🚨 NUCLEAR LEAD ULTRA: {specific_lead['name']} (Kommo: {specific_lead['kommo_lead_id']})")
+
+                    # DOUBLE CHECK: Verificar se o lead correto realmente existe
+                    double_check = self.client.table('leads').select('id').eq('id', correct_id).execute()
+                    if double_check.data:
+                        emoji_logger.system_error(f"✅ ULTRA CHECK: Lead {correct_id} CONFIRMADO")
+                    else:
+                        emoji_logger.system_error(f"❌ ULTRA ERRO: Lead {correct_id} não existe!")
+                        raise ValueError(f"ULTRA: Lead correto {correct_id} não encontrado")
+                else:
+                    emoji_logger.system_error(f"❌ ULTRA ERRO: Nenhum lead encontrado para phone 554199954512")
+                    raise ValueError(f"ULTRA: Nenhum lead para phone 554199954512")
             except Exception as e:
-                emoji_logger.system_error(f"❌ ERRO NUCLEAR: {e}")
+                emoji_logger.system_error(f"❌ ERRO NUCLEAR ULTRA: {e}")
+                raise ValueError(f"ULTRA: Falha total na correção para phone 554199954512: {e}")
+
+        # CORREÇÃO UNIVERSAL para QUALQUER phone suspeito
+        elif final_phone and final_phone.startswith('5541'):
+            emoji_logger.system_error(f"🚨 UNIVERSAL: Detectado phone suspeito {final_phone} - aplicando correção")
+            try:
+                universal_response = self.client.table('leads').select('*').eq('phone_number', final_phone).order('created_at', desc=True).limit(1).execute()
+                if universal_response.data:
+                    universal_lead = universal_response.data[0]
+                    universal_id = universal_lead['id']
+                    old_universal_id = follow_up_data.get('lead_id')
+                    follow_up_data['lead_id'] = universal_id
+                    emoji_logger.system_error(f"🚨 UNIVERSAL SUBSTITUIÇÃO: {old_universal_id} → {universal_id}")
+            except Exception as e:
+                emoji_logger.system_error(f"❌ ERRO UNIVERSAL: {e}")
 
         # Verificação final de segurança
         current_lead_id = follow_up_data.get('lead_id')
