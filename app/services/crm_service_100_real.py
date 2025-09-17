@@ -368,6 +368,15 @@ class CRMServiceReal:
                             }
                         )
         except Exception as e:
+            # Silenciar erro 402 - Payment Required (problema de plano da conta Kommo)
+            if "402" in str(e) and "Payment Required" in str(e):
+                emoji_logger.service_warning(f"Kommo API: Plano requer pagamento (402) - continuando sem CRM")
+                return {
+                    "success": False,
+                    "error": "payment_required",
+                    "message": "Conta Kommo requer upgrade de plano"
+                }
+
             emoji_logger.service_error(f"Erro ao criar lead no Kommo: {e}")
             if not isinstance(e, KommoAPIException):
                 raise KommoAPIException(

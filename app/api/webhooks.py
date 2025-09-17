@@ -1236,8 +1236,20 @@ async def process_message_with_agent(
 
     if not conversation:
         emoji_logger.system_debug("Criando nova conversa...")
+
+        # Garantir que sempre haja um lead antes de criar conversa
+        if not lead:
+            emoji_logger.system_warning(f"Criando lead temporário para {phone} antes da conversa")
+            lead_data = {
+                "phone_number": phone,
+                "name": None,
+                "current_stage": "INITIAL_CONTACT"
+            }
+            lead = await supabase_client.create_lead(lead_data)
+            emoji_logger.system_success(f"Lead temporário criado: {lead.get('id')}")
+
         conversation = await supabase_client.create_conversation(
-            phone, lead["id"] if lead else None
+            phone, lead["id"]
         )
         emoji_logger.system_success(f"Nova conversa criada - ID: {conversation.get('id')}")
 

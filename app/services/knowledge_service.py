@@ -178,11 +178,11 @@ class KnowledgeService:
                 logger.debug(f"Conhecimento não adicionado - muito simples: {question[:50]}...")
                 return False
 
-            # Verificar se já existe conhecimento similar
+            # Verificar se já existe conhecimento similar (threshold mais baixo)
             similar_docs = await self.search_knowledge_base(question, max_results=3)
             for doc in similar_docs:
-                if doc.get('similarity_score', 0) > 0.8:  # Muito similar
-                    logger.debug(f"Conhecimento similar já existe, não adicionando: {question[:50]}...")
+                if doc.get('similarity_score', 0) > 0.95:  # Apenas se for MUITO similar
+                    logger.debug(f"Conhecimento muito similar já existe, não adicionando: {question[:50]}...")
                     return False
 
             # Gerar keywords automaticamente se não fornecidas
@@ -222,20 +222,28 @@ class KnowledgeService:
         """
         Valida se uma pergunta/resposta vale a pena ser salva como conhecimento
         """
+        logger.debug(f"🧠 Validando conhecimento: Q='{question[:30]}...', A='{answer[:30]}...'")
+
         # Muito curtas
-        if len(question.strip()) < 10 or len(answer.strip()) < 15:
+        if len(question.strip()) < 8 or len(answer.strip()) < 10:
+            logger.debug(f"🧠 ❌ Rejeitado por tamanho: Q={len(question.strip())}, A={len(answer.strip())}")
             return False
 
-        # Palavras genéricas demais
+        # Palavras genéricas demais (apenas se a pergunta inteira for genérica)
         generic_words = ['oi', 'olá', 'tchau', 'ok', 'sim', 'não', 'obrigado', 'valeu']
-        question_lower = question.lower()
-        if any(word in question_lower for word in generic_words):
+        question_lower = question.lower().strip()
+        if question_lower in generic_words or len(question_lower.split()) <= 2:
+            logger.debug(f"🧠 ❌ Rejeitado por ser muito genérico")
             return False
 
-        # Perguntas sobre agendamento (muito específicas)
-        if any(word in question_lower for word in ['agendar', 'horário', 'disponível', 'quando']):
+        # Permitir perguntas sobre planos, valores, etc. (removido filtro de agendamento)
+        # Apenas rejeitar perguntas pessoais muito específicas
+        personal_words = ['meu nome', 'minha idade', 'onde moro']
+        if any(word in question_lower for word in personal_words):
+            logger.debug(f"🧠 ❌ Rejeitado por ser muito pessoal")
             return False
 
+        logger.debug(f"🧠 ✅ Conhecimento aprovado para salvamento")
         return True
 
     def _extract_keywords(self, text: str) -> str:

@@ -351,23 +351,23 @@ class AgenticSDRStateless:
                 f"current_stage='{lead_info.get('current_stage')}'"
             )
 
-            # COMANDO #CLEAR - Implementação básica para produção
+            # COMANDO #CLEAR - Limpeza completa usando DataCleanupService
             if message.strip().upper() == "#CLEAR":
                 emoji_logger.system_warning(f"🧹 COMANDO #CLEAR detectado de {phone}")
 
                 try:
-                    # Implementação básica: deletar apenas o lead principal
-                    if lead_info.get("id"):
-                        await supabase_client.delete_lead(lead_info["id"])
+                    from app.services.data_cleanup_service import data_cleanup_service
 
-                        response = (
-                            "✅ Pronto! Seus dados foram removidos do sistema. "
-                            "Se quiser conversar novamente, é só mandar uma mensagem!"
-                        )
-                        emoji_logger.system_success(f"🧹 Lead deletado para {phone}")
+                    # Usar o serviço completo de limpeza
+                    cleanup_result = await data_cleanup_service.execute_clear_command(phone)
+
+                    if cleanup_result.get("success"):
+                        response = cleanup_result.get("message", "✅ Dados removidos com sucesso!")
+                        emoji_logger.system_success(f"🧹 Limpeza completa executada para {phone}")
                         return response, {}
                     else:
-                        response = "✅ Nenhum dado encontrado para remover."
+                        error_msg = cleanup_result.get("error", "Erro desconhecido")
+                        response = f"❌ Erro ao limpar dados: {error_msg}"
                         return response, lead_info
 
                 except Exception as e:
@@ -392,15 +392,15 @@ class AgenticSDRStateless:
                 if existing_lead:
                     emoji_logger.system_warning(f"Lead já existe para {phone}, usando existente: {existing_lead.get('id')}")
                     lead_info.update(existing_lead)
-                    # Atualizar para estado aguardando nome se necessário
-                    if existing_lead.get("current_stage") != "AGUARDANDO_NOME":
-                        await supabase_client.update_lead(existing_lead["id"], {"current_stage": "AGUARDANDO_NOME"})
+                    # Manter como INITIAL_CONTACT se for lead existente sem nome
+                    if not existing_lead.get("name"):
+                        await supabase_client.update_lead(existing_lead["id"], {"current_stage": "INITIAL_CONTACT"})
                 else:
                     # Criar lead temporário APENAS se não existir
                     temp_lead_data = {
                         "phone_number": phone,
                         "name": None,  # IMPORTANTE: Sem nome ainda
-                        "current_stage": "AGUARDANDO_NOME"
+                        "current_stage": "INITIAL_CONTACT"
                     }
 
                     try:
@@ -438,10 +438,10 @@ class AgenticSDRStateless:
                 if extracted_name:
                     emoji_logger.agentic_success(f"👤 Nome coletado com sucesso: {extracted_name}")
                     
-                    # Atualizar lead no Supabase com nome
+                    # Atualizar lead no Supabase com nome e mover para INTERESTED
                     await supabase_client.update_lead(lead_info["id"], {
                         "name": extracted_name,
-                        "current_stage": "INITIAL_CONTACT"
+                        "current_stage": "INTERESTED"
                     })
                     lead_info["name"] = extracted_name
                     
