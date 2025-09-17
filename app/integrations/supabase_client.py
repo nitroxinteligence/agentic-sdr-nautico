@@ -70,18 +70,18 @@ class SupabaseClient:
                         """Interceptação ULTRA rigorosa de inserções"""
                         import traceback
 
-                        emoji_logger.system_error(f"🚨 ULTRA INTERCEPTED: Tentativa de inserir na tabela leads: {data}")
-                        emoji_logger.system_error(f"🚨 STACK TRACE: {traceback.format_stack()}")
+                        emoji_logger.system_error("ULTRA_LEADS_INSERT", f"🚨 ULTRA INTERCEPTED: Tentativa de inserir na tabela leads: {data}")
+                        emoji_logger.system_error("ULTRA_STACK", f"🚨 STACK TRACE: {traceback.format_stack()}")
 
                         # Verificar se há phone_number com unknown
                         if isinstance(data, dict):
                             phone = str(data.get('phone_number', ''))
                             if 'unknown' in phone.lower():
-                                emoji_logger.system_error(f"🚫 ULTRA BLOCKED: Inserção unknown_* TOTALMENTE BLOQUEADA: {phone}")
+                                emoji_logger.system_error("ULTRA_BLOCK", f"🚫 ULTRA BLOCKED: Inserção unknown_* TOTALMENTE BLOQUEADA: {phone}")
                                 # Retornar fake result
                                 return type('FakeResult', (), {'data': [{"id": "blocked", **data}]})()
 
-                        emoji_logger.system_error(f"✅ ULTRA PERMITTED: Inserção permitida: {data}")
+                        emoji_logger.system_error("ULTRA_PERMIT", f"✅ ULTRA PERMITTED: Inserção permitida: {data}")
                         return self._original.insert(data)
 
                 return InterceptedLeadsTable(original_table)
@@ -107,16 +107,16 @@ class SupabaseClient:
         # VALIDAÇÃO ULTRA CRÍTICA: Qualquer phone_number que comece com "unknown" é REJEITADO
         phone_number = str(lead_data.get('phone_number', ''))
 
-        emoji_logger.system_error(f"🔍 ULTRA DEBUG CREATE_LEAD: phone_number='{phone_number}', lead_data={lead_data}")
+        emoji_logger.system_error("CREATE_LEAD", f"🔍 ULTRA DEBUG CREATE_LEAD: phone_number='{phone_number}', lead_data={lead_data}")
 
         if 'unknown' in phone_number.lower():
             import traceback
             stack_trace = traceback.format_stack()
-            emoji_logger.system_error(f"🚫 ULTRA BLOQUEIO: Rejeitando lead com phone_number contendo 'unknown': {phone_number}")
-            emoji_logger.system_error(f"🔍 STACK TRACE: {stack_trace}")
+            emoji_logger.system_error("UNKNOWN_BLOCK", f"🚫 ULTRA BLOQUEIO: Rejeitando lead com phone_number contendo 'unknown': {phone_number}")
+            emoji_logger.system_error("STACK_TRACE", f"🔍 STACK TRACE: {stack_trace}")
 
             # SOLUÇÃO ABSOLUTA: SEMPRE retornar lead existente real
-            emoji_logger.system_error(f"🚨 SOLUÇÃO ABSOLUTA: Bloqueado unknown_* - buscando lead real")
+            emoji_logger.system_error("ABSOLUTE_SOLUTION", f"🚨 SOLUÇÃO ABSOLUTA: Bloqueado unknown_* - buscando lead real")
 
             # ESTRATÉGIA 1: Buscar pelo próprio telefone (MAIS CONFIÁVEL que kommo_id)
             # PROBLEMA: kommo_lead_id pode estar incorreto, telefone é mais direto
@@ -127,7 +127,7 @@ class SupabaseClient:
                 result = self.client.table('leads').select("*").order('created_at', desc=True).limit(1).execute()
                 if result.data:
                     latest_lead = result.data[0]
-                    emoji_logger.system_error(f"✅ ABSOLUTO PRIORITÁRIO: Lead mais recente: {latest_lead['id']}")
+                    emoji_logger.system_error("PRIORITY_LEAD", f"✅ ABSOLUTO PRIORITÁRIO: Lead mais recente: {latest_lead['id']}")
                     return latest_lead
             except:
                 pass
@@ -138,7 +138,7 @@ class SupabaseClient:
                 try:
                     existing_lead = await self.get_lead_by_kommo_id(str(kommo_id))
                     if existing_lead:
-                        emoji_logger.system_error(f"✅ ABSOLUTO: Lead por Kommo ID: {existing_lead['id']}")
+                        emoji_logger.system_error("KOMMO_LEAD", f"✅ ABSOLUTO: Lead por Kommo ID: {existing_lead['id']}")
                         return existing_lead
                 except:
                     pass
@@ -150,19 +150,19 @@ class SupabaseClient:
                     result = self.client.table('leads').select("*").eq('name', name).order('created_at', desc=True).limit(1).execute()
                     if result.data:
                         existing_lead = result.data[0]
-                        emoji_logger.system_error(f"✅ ABSOLUTO: Lead por nome: {existing_lead['id']}")
+                        emoji_logger.system_error("NAME_LEAD", f"✅ ABSOLUTO: Lead por nome: {existing_lead['id']}")
                         return existing_lead
                 except:
                     pass
 
             # IMPOSSÍVEL chegar aqui, mas proteção total
-            emoji_logger.system_error(f"🚫 ABSOLUTO: TODAS ESTRATÉGIAS FALHARAM!")
+            emoji_logger.system_error("ALL_FAILED", f"🚫 ABSOLUTO: TODAS ESTRATÉGIAS FALHARAM!")
             raise ValueError(f"ABSOLUTE BLOCK: Cannot create unknown_* and no fallback available")
 
         # Validação adicional: phone_number deve ter pelo menos 10 dígitos
         digits_only = ''.join(filter(str.isdigit, phone_number))
         if len(digits_only) < 10:
-            emoji_logger.system_error(f"🚫 BLOQUEADO: phone_number muito curto: {phone_number} (dígitos: {digits_only})")
+            emoji_logger.system_error("SHORT_PHONE", f"🚫 BLOQUEADO: phone_number muito curto: {phone_number} (dígitos: {digits_only})")
             raise ValueError(f"Phone number inválido: {phone_number}")
 
         lead_data['created_at'] = datetime.now().isoformat()
@@ -501,12 +501,12 @@ class SupabaseClient:
         lead_id = follow_up_data.get('lead_id')
         phone_number = follow_up_data.get('phone_number', '')
 
-        emoji_logger.system_error(f"🚨 VALIDAÇÃO ANTI-KOMMO: lead_id={lead_id}, phone={phone_number}")
+        emoji_logger.system_error("ANTI_KOMMO", f"🚨 VALIDAÇÃO ANTI-KOMMO: lead_id={lead_id}, phone={phone_number}")
 
         # DETECTAR E BLOQUEAR UUID DO KOMMO
         if lead_id and isinstance(lead_id, str) and len(lead_id) > 30 and lead_id.count('-') >= 4:
-            emoji_logger.system_error(f"🚫 KOMMO UUID DETECTADO E BLOQUEADO: {lead_id}")
-            emoji_logger.system_error(f"🔄 FORÇANDO BUSCA POR PHONE: {phone_number}")
+            emoji_logger.system_error("UUID_BLOCK", f"🚫 KOMMO UUID DETECTADO E BLOQUEADO: {lead_id}")
+            emoji_logger.system_error("FORCE_PHONE", f"🔄 FORÇANDO BUSCA POR PHONE: {phone_number}")
 
             # BUSCA FORÇADA POR PHONE
             if phone_number:
