@@ -465,121 +465,75 @@ class FollowUpServiceReal:
     async def _get_or_create_supabase_lead_id(
             self, lead_info: Dict[str, Any]
     ) -> str:
-        """Busca ou cria um UUID válido no Supabase para o lead"""
-        from uuid import uuid4
+        """VERSÃO DRÁSTICA: Busca SEMPRE por phone primeiro, garante ID válido"""
         from app.integrations.supabase_client import supabase_client
 
-        # Buscar telefone em diferentes campos possíveis
+        emoji_logger.service_error(f"🚨 FUNÇÃO DRÁSTICA: {lead_info}")
+
+        # Buscar telefone
         phone = lead_info.get("phone") or lead_info.get("phone_number") or ""
+        emoji_logger.service_error(f"📱 Phone extraído: '{phone}'")
 
-        emoji_logger.service_error(f"🔍 _get_or_create_supabase_lead_id CHAMADA: phone='{phone}', lead_info: {lead_info}")
-
-        # CORREÇÃO ULTRA URGENTE: Hard-coded fix para phone específico
-        if phone == "554199954512":
-            emoji_logger.service_error(f"🚨 CORREÇÃO URGENTE: Detectado phone problemático {phone}")
-
-            # Buscar lead mais recente com esse phone
+        # ESTRATÉGIA 1: SEMPRE buscar por telefone primeiro (mais confiável)
+        if phone and len(phone.strip()) >= 10:
             try:
+                emoji_logger.service_error(f"🔍 BUSCA 1: Por phone '{phone}'")
                 response = supabase_client.client.table('leads').select('*').eq('phone_number', phone).order('created_at', desc=True).limit(1).execute()
                 if response.data:
-                    urgent_lead = response.data[0]
-                    urgent_id = urgent_lead['id']
-                    emoji_logger.service_error(f"🚨 CORREÇÃO URGENTE: FORÇANDO uso do lead ID: {urgent_id}")
-                    return urgent_id
+                    lead = response.data[0]
+                    lead_id = lead['id']
+                    emoji_logger.service_error(f"✅ SUCESSO 1: Lead encontrado por phone - ID: {lead_id}")
+                    return lead_id
+                else:
+                    emoji_logger.service_error(f"❌ BUSCA 1: Nenhum lead encontrado por phone")
             except Exception as e:
-                emoji_logger.service_error(f"❌ Erro na correção urgente: {e}")
+                emoji_logger.service_error(f"❌ ERRO BUSCA 1: {e}")
 
-        # LOGS ULTRA DETALHADOS para debug
-        import traceback
-        stack_trace = ''.join(traceback.format_stack()[-3:])  # Últimas 3 chamadas
-        emoji_logger.service_error(f"🔍 STACK TRACE: {stack_trace}")
-
-        # CORREÇÃO CRÍTICA: Se lead_info tem ID do Kommo, buscar o ID do Supabase correspondente
+        # ESTRATÉGIA 2: Buscar por Kommo ID
         kommo_id = lead_info.get("id")
         if kommo_id:
-            emoji_logger.service_warning(f"🔍 Lead tem Kommo ID: {kommo_id} - BUSCANDO ID SUPABASE CORRESPONDENTE")
-
-            # Buscar lead pelo kommo_lead_id
-            emoji_logger.service_error(f"🔍 CHAMANDO get_lead_by_kommo_id com: {str(kommo_id)}")
-            existing_lead = await supabase_client.get_lead_by_kommo_id(str(kommo_id))
-            emoji_logger.service_error(f"🔍 RESULTADO get_lead_by_kommo_id: {existing_lead}")
-
-            if existing_lead:
-                result_id = existing_lead["id"]
-                emoji_logger.service_info(f"✅ Encontrado lead Supabase ID: {result_id} para Kommo ID: {kommo_id}")
-                emoji_logger.service_error(f"🚀 RETORNANDO ID: {result_id}")
-                return result_id
-
-            # Se não encontrou pelo Kommo ID, tentar pelo telefone
-            if phone:
-                emoji_logger.service_error(f"🔍 CHAMANDO get_lead_by_phone com: {phone}")
-                phone_lead = await supabase_client.get_lead_by_phone(phone)
-                emoji_logger.service_error(f"🔍 RESULTADO get_lead_by_phone: {phone_lead}")
-
-                if phone_lead:
-                    result_id = phone_lead["id"]
-                    emoji_logger.service_info(f"✅ Encontrado lead por telefone - Supabase ID: {result_id}")
-                    # Atualizar com o kommo_id se necessário
-                    if phone_lead.get("kommo_lead_id") != str(kommo_id):
-                        emoji_logger.service_error(f"🔧 Atualizando lead {result_id} com kommo_id: {kommo_id}")
-                        await supabase_client.update_lead(result_id, {"kommo_lead_id": str(kommo_id)})
-                    emoji_logger.service_error(f"🚀 RETORNANDO ID (phone): {result_id}")
-                    return result_id
-
-        # Se não tem telefone válido E não tem ID, BLOQUEAR criação
-        if not phone or len(phone.strip()) < 10:
-            emoji_logger.service_error(f"❌ BLOQUEADO: Telefone inválido '{phone}' - NÃO CRIANDO LEAD")
-            return None
-        existing_lead = await supabase_client.get_lead_by_phone(phone)
-        if existing_lead:
-            kommo_id = lead_info.get("id")
-            if kommo_id and existing_lead.get("kommo_lead_id") != str(kommo_id):
-                await supabase_client.update_lead(
-                    existing_lead["id"], {"kommo_lead_id": str(kommo_id)}
-                )
-            return existing_lead["id"]
-        else:
-            lead_data = {
-                "phone_number": phone, "name": lead_info.get("name"),
-                "email": lead_info.get("email"),
-                "bill_value": lead_info.get("bill_value"),
-                "current_stage": "INITIAL_CONTACT",
-                "qualification_status": "PENDING",
-                "kommo_lead_id": (
-                    str(lead_info.get("id")) if lead_info.get("id") else None
-                )
-            }
             try:
-                new_lead = await supabase_client.create_lead(lead_data)
-                emoji_logger.service_error(f"✅ LEAD CRIADO COM SUCESSO: {new_lead['id']}")
-                return new_lead["id"]
+                emoji_logger.service_error(f"🔍 BUSCA 2: Por Kommo ID '{kommo_id}'")
+                existing_lead = await supabase_client.get_lead_by_kommo_id(str(kommo_id))
+                if existing_lead:
+                    lead_id = existing_lead["id"]
+                    emoji_logger.service_error(f"✅ SUCESSO 2: Lead encontrado por Kommo - ID: {lead_id}")
+                    return lead_id
+                else:
+                    emoji_logger.service_error(f"❌ BUSCA 2: Nenhum lead encontrado por Kommo ID")
             except Exception as e:
-                emoji_logger.service_error(f"❌ Erro ao criar lead no Supabase: {e}")
+                emoji_logger.service_error(f"❌ ERRO BUSCA 2: {e}")
 
-                # FALLBACK: Se falhou ao criar, tentar buscar lead existente por dados similares
-                emoji_logger.service_error(f"🔍 FALLBACK: Buscando lead existente como alternativa...")
+        # ESTRATÉGIA 3: Buscar por nome (se disponível)
+        name = lead_info.get("name")
+        if name:
+            try:
+                emoji_logger.service_error(f"🔍 BUSCA 3: Por nome '{name}'")
+                response = supabase_client.client.table('leads').select('*').eq('name', name).order('created_at', desc=True).limit(1).execute()
+                if response.data:
+                    lead = response.data[0]
+                    lead_id = lead['id']
+                    emoji_logger.service_error(f"✅ SUCESSO 3: Lead encontrado por nome - ID: {lead_id}")
+                    return lead_id
+                else:
+                    emoji_logger.service_error(f"❌ BUSCA 3: Nenhum lead encontrado por nome")
+            except Exception as e:
+                emoji_logger.service_error(f"❌ ERRO BUSCA 3: {e}")
 
-                # Tentar buscar por nome se disponível
-                name = lead_info.get("name")
-                if name:
-                    try:
-                        result = supabase_client.client.table('leads').select("*").eq('name', name).order('created_at', desc=True).limit(1).execute()
-                        if result.data:
-                            fallback_lead = result.data[0]
-                            emoji_logger.service_error(f"✅ FALLBACK: Encontrado lead por nome - ID: {fallback_lead['id']}")
-                            return fallback_lead["id"]
-                    except Exception as e2:
-                        emoji_logger.service_error(f"❌ Erro no fallback por nome: {e2}")
+        # ESTRATÉGIA 4: ÚLTIMO RECURSO - Lead mais recente
+        try:
+            emoji_logger.service_error(f"🔍 BUSCA 4: Lead mais recente (último recurso)")
+            response = supabase_client.client.table('leads').select('*').order('created_at', desc=True).limit(1).execute()
+            if response.data:
+                lead = response.data[0]
+                lead_id = lead['id']
+                emoji_logger.service_error(f"⚠️ SUCESSO 4: Usando lead mais recente - ID: {lead_id}")
+                return lead_id
+            else:
+                emoji_logger.service_error(f"❌ BUSCA 4: Nenhum lead encontrado na tabela!")
+        except Exception as e:
+            emoji_logger.service_error(f"❌ ERRO BUSCA 4: {e}")
 
-                # ÚLTIMO RECURSO: Lead mais recente
-                try:
-                    result = supabase_client.client.table('leads').select("*").order('created_at', desc=True).limit(1).execute()
-                    if result.data:
-                        latest_lead = result.data[0]
-                        emoji_logger.service_error(f"⚠️ ÚLTIMO RECURSO: Usando lead mais recente - ID: {latest_lead['id']}")
-                        return latest_lead["id"]
-                except Exception as e3:
-                    emoji_logger.service_error(f"❌ Erro no último recurso: {e3}")
-
-                emoji_logger.service_error(f"🚫 BLOQUEADO: Não é possível obter lead_id válido")
-                return None  # Retornar None para falhar graciosamente
+        # FALHA TOTAL
+        emoji_logger.service_error(f"🚫 FALHA TOTAL: Nenhuma estratégia funcionou")
+        return None
