@@ -497,11 +497,35 @@ class SupabaseClient:
     ) -> Dict[str, Any]:
         """Cria um follow-up com retry automático"""
 
-        # VALIDAÇÃO NUCLEAR: Verificar e CORRIGIR lead_id se necessário
+        # 🚨 VALIDAÇÃO ANTI-KOMMO UUID - BLOQUEAR TOTALMENTE
         lead_id = follow_up_data.get('lead_id')
         phone_number = follow_up_data.get('phone_number', '')
 
-        emoji_logger.system_error(f"🚨 VALIDAÇÃO NUCLEAR: lead_id={lead_id}, phone={phone_number}")
+        emoji_logger.system_error(f"🚨 VALIDAÇÃO ANTI-KOMMO: lead_id={lead_id}, phone={phone_number}")
+
+        # DETECTAR E BLOQUEAR UUID DO KOMMO
+        if lead_id and isinstance(lead_id, str) and len(lead_id) > 30 and lead_id.count('-') >= 4:
+            emoji_logger.system_error(f"🚫 KOMMO UUID DETECTADO E BLOQUEADO: {lead_id}")
+            emoji_logger.system_error(f"🔄 FORÇANDO BUSCA POR PHONE: {phone_number}")
+
+            # BUSCA FORÇADA POR PHONE
+            if phone_number:
+                try:
+                    clean_phone = phone_number.replace('+', '').replace('-', '').replace(' ', '')
+                    emergency_response = self.client.table('leads').select('*').eq('phone_number', clean_phone).order('created_at', desc=True).limit(1).execute()
+                    if emergency_response.data:
+                        emergency_lead = emergency_response.data[0]
+                        correct_supabase_id = emergency_lead['id']
+                        follow_up_data['lead_id'] = correct_supabase_id
+                        emoji_logger.system_error(f"✅ ANTI-KOMMO SUCCESS: UUID Kommo {lead_id} → Supabase {correct_supabase_id}")
+                        lead_id = correct_supabase_id
+                    else:
+                        raise ValueError(f"ANTI-KOMMO: Nenhum lead encontrado para phone {clean_phone}")
+                except Exception as e:
+                    emoji_logger.system_error(f"❌ ANTI-KOMMO ERROR: {e}")
+                    raise ValueError(f"ANTI-KOMMO: Falha ao corrigir UUID Kommo {lead_id}")
+            else:
+                raise ValueError(f"ANTI-KOMMO: UUID Kommo {lead_id} sem phone para correção")
 
         if lead_id:
             # Verificar se o lead existe na tabela leads

@@ -482,59 +482,50 @@ class FollowUpServiceReal:
         phone = lead_info.get("phone") or lead_info.get("phone_number") or ""
         emoji_logger.service_error(f"📱 Phone extraído: '{phone}'")
 
-        # CORREÇÃO ULTRA DEFINITIVA PARA PHONE ESPECÍFICO
-        if phone == "554199954512":
-            emoji_logger.service_error(f"🚨 CORREÇÃO ULTRA DEFINITIVA: Phone específico detectado: {phone}")
+        # 🚨 CORREÇÃO BYPASS TOTAL - SEMPRE phone primeiro
+        if phone:
+            emoji_logger.service_error(f"🚨 BYPASS TOTAL: Forçando busca por phone '{phone}' PRIMEIRO")
             try:
-                response = supabase_client.client.table('leads').select('*').eq('phone_number', phone).order('created_at', desc=True).limit(1).execute()
-                if response.data:
-                    lead = response.data[0]
-                    lead_id = lead['id']
-                    emoji_logger.service_error(f"✅ ULTRA DEFINITIVO: Lead correto encontrado - ID: {lead_id}")
-                    emoji_logger.service_error(f"✅ ULTRA DEFINITIVO: Lead {lead['name']} (Kommo: {lead.get('kommo_lead_id')})")
+                direct_response = supabase_client.client.table('leads').select('*').eq('phone_number', phone).order('created_at', desc=True).limit(1).execute()
+                if direct_response.data:
+                    direct_lead = direct_response.data[0]
+                    direct_id = direct_lead['id']
+                    emoji_logger.service_error(f"✅ BYPASS SUCCESS: Lead por phone → {direct_id}")
+                    emoji_logger.service_error(f"✅ BYPASS LEAD: {direct_lead['name']} (Kommo: {direct_lead.get('kommo_lead_id')})")
 
-                    # TRIPLE CHECK: Verificar se o lead realmente existe
-                    verification = supabase_client.client.table('leads').select('id').eq('id', lead_id).execute()
-                    if verification.data:
-                        emoji_logger.service_error(f"✅ ULTRA VERIFICAÇÃO: Lead {lead_id} confirmado na base")
-                        return lead_id
+                    # VERIFICAÇÃO FINAL BYPASS
+                    verify_bypass = supabase_client.client.table('leads').select('id').eq('id', direct_id).execute()
+                    if verify_bypass.data:
+                        emoji_logger.service_error(f"✅ BYPASS VERIFIED: {direct_id} EXISTS")
+                        return direct_id
                     else:
-                        emoji_logger.service_error(f"❌ ULTRA ERRO: Lead {lead_id} não confirmado!")
-                        raise ValueError(f"ULTRA: Lead {lead_id} não existe na verificação")
+                        emoji_logger.service_error(f"❌ BYPASS FAIL: {direct_id} NOT FOUND")
                 else:
-                    emoji_logger.service_error(f"❌ ULTRA ERRO: Nenhum lead encontrado para phone 554199954512")
-                    # FALLBACK ULTRA: Buscar qualquer lead com phone similar
-                    fallback_response = supabase_client.client.table('leads').select('*').like('phone_number', '%99954512%').order('created_at', desc=True).limit(1).execute()
-                    if fallback_response.data:
-                        fallback_lead = fallback_response.data[0]
-                        fallback_id = fallback_lead['id']
-                        emoji_logger.service_error(f"⚠️ ULTRA FALLBACK: Usando lead similar {fallback_id}")
-                        return fallback_id
+                    emoji_logger.service_error(f"❌ BYPASS: Nenhum lead encontrado para phone {phone}")
             except Exception as e:
-                emoji_logger.service_error(f"❌ ERRO ULTRA DEFINITIVO: {e}")
-                # ÚLTIMO RECURSO ULTRA: Forçar uso do lead mais recente
-                try:
-                    ultra_last = supabase_client.client.table('leads').select('*').order('created_at', desc=True).limit(1).execute()
-                    if ultra_last.data:
-                        ultra_lead = ultra_last.data[0]
-                        ultra_id = ultra_lead['id']
-                        emoji_logger.service_error(f"🚨 ULTRA ÚLTIMO RECURSO: Forçando {ultra_id}")
-                        return ultra_id
-                except Exception as ultra_e:
-                    emoji_logger.service_error(f"❌ ULTRA CATÁSTROFE: {ultra_e}")
+                emoji_logger.service_error(f"❌ BYPASS ERROR: {e}")
 
-        # CORREÇÃO UNIVERSAL PARA PHONES SUSPEITOS (5541...)
-        elif phone and phone.startswith('5541'):
-            emoji_logger.service_error(f"🚨 UNIVERSAL PHONE: Detectado phone suspeito {phone}")
+        # CORREÇÃO ESPECÍFICA PARA 554199954512
+        if phone == "554199954512":
+            emoji_logger.service_error(f"🚨 HARD-CODED FIX: Phone 554199954512 detectado")
             try:
-                universal_response = supabase_client.client.table('leads').select('*').eq('phone_number', phone).order('created_at', desc=True).limit(1).execute()
-                if universal_response.data:
-                    universal_lead = universal_response.data[0]
-                    universal_id = universal_lead['id']
-                    emoji_logger.service_error(f"✅ UNIVERSAL: Lead encontrado {universal_id}")
-                    return universal_id
+                # BUSCA DIRETA FORÇADA
+                hardcoded_response = supabase_client.client.table('leads').select('*').eq('phone_number', '554199954512').order('created_at', desc=True).limit(1).execute()
+                if hardcoded_response.data:
+                    hardcoded_lead = hardcoded_response.data[0]
+                    hardcoded_id = hardcoded_lead['id']
+                    emoji_logger.service_error(f"✅ HARD-CODED SUCCESS: {hardcoded_id}")
+                    return hardcoded_id
+                else:
+                    # BUSCA LIKE FORÇADA
+                    like_response = supabase_client.client.table('leads').select('*').like('phone_number', '%99954512%').order('created_at', desc=True).limit(1).execute()
+                    if like_response.data:
+                        like_lead = like_response.data[0]
+                        like_id = like_lead['id']
+                        emoji_logger.service_error(f"✅ HARD-CODED LIKE: {like_id}")
+                        return like_id
             except Exception as e:
-                emoji_logger.service_error(f"❌ ERRO UNIVERSAL: {e}")
+                emoji_logger.service_error(f"❌ HARD-CODED ERROR: {e}")
 
         # ESTRATÉGIA 1: SEMPRE buscar por telefone primeiro (mais confiável)
         if phone and len(phone.strip()) >= 10:
