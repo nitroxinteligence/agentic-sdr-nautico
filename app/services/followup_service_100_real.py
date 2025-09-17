@@ -421,29 +421,21 @@ class FollowUpServiceReal:
         """Busca ou cria um UUID válido no Supabase para o lead"""
         from uuid import uuid4
         from app.integrations.supabase_client import supabase_client
-        phone = lead_info.get("phone", "")
+
+        # Buscar telefone em diferentes campos possíveis
+        phone = lead_info.get("phone") or lead_info.get("phone_number") or ""
+
+        emoji_logger.service_debug(f"🔍 _get_or_create_supabase_lead_id: phone='{phone}', lead_info keys: {list(lead_info.keys())}")
+
         if not phone:
-            new_lead_uuid = str(uuid4())
-            unique_phone = f"unknown_{new_lead_uuid[:8]}"
-            lead_data = {
-                "id": new_lead_uuid, "phone_number": unique_phone,
-                "name": lead_info.get("name", "Lead Sem Telefone"),
-                "email": lead_info.get("email"),
-                "bill_value": lead_info.get("bill_value"),
-                "current_stage": "INITIAL_CONTACT",
-                "qualification_status": "PENDING",
-                "kommo_lead_id": (
-                    str(lead_info.get("id")) if lead_info.get("id") else None
-                )
-            }
-            try:
-                new_lead = await supabase_client.create_lead(lead_data)
-                return new_lead["id"]
-            except Exception as e:
-                emoji_logger.service_error(
-                    f"Erro ao criar lead sem telefone: {e}"
-                )
-                return new_lead_uuid
+            # Se o lead já tem um ID no Supabase, usar esse ID
+            if lead_info.get("id"):
+                emoji_logger.service_warning(f"🔍 Lead sem telefone mas com ID existente: {lead_info.get('id')}")
+                return str(lead_info["id"])
+
+            # Se não tem telefone nem ID, é erro crítico - não criar lead inválido
+            emoji_logger.service_error(f"❌ ERRO: Tentativa de criar lead sem telefone nem ID válido: {lead_info}")
+            raise ValueError("Não é possível criar lead sem telefone nem ID existente")
         existing_lead = await supabase_client.get_lead_by_phone(phone)
         if existing_lead:
             kommo_id = lead_info.get("id")

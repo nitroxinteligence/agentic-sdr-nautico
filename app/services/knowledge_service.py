@@ -205,14 +205,17 @@ class KnowledgeService:
                 knowledge_data["source_phone"] = lead_info.get("phone_number")
 
             # Salvar na base de conhecimento
+            logger.info(f"📚 Tentando salvar conhecimento: {knowledge_data}")
             result = await supabase_client.add_knowledge(knowledge_data)
+            logger.info(f"📚 Resultado do salvamento: {result}")
 
             if result:
-                logger.info(f"📚 Novo conhecimento adicionado automaticamente: {question[:50]}...")
+                logger.info(f"📚 ✅ Novo conhecimento adicionado automaticamente: {question[:50]}...")
                 self.clear_cache()  # Limpar cache para incluir novo conhecimento
                 return True
-
-            return False
+            else:
+                logger.warning(f"📚 ❌ Falha ao salvar conhecimento - resultado vazio")
+                return False
 
         except Exception as e:
             logger.error(f"❌ Erro ao adicionar conhecimento automático: {e}")
