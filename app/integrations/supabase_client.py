@@ -497,16 +497,17 @@ class SupabaseClient:
     ) -> Dict[str, Any]:
         """Cria um follow-up com retry automático"""
 
-        # 🚨 VALIDAÇÃO ANTI-KOMMO UUID - BLOQUEAR TOTALMENTE
+        # VALIDAÇÃO SIMPLES - Apenas verificar se lead existe
         lead_id = follow_up_data.get('lead_id')
         phone_number = follow_up_data.get('phone_number', '')
 
-        emoji_logger.system_error("ANTI_KOMMO", f"🚨 VALIDAÇÃO ANTI-KOMMO: lead_id={lead_id}, phone={phone_number}")
+        emoji_logger.system_error("VALIDATION", f"🔍 Validando: lead_id={lead_id}, phone={phone_number}")
 
-        # DETECTAR E BLOQUEAR UUID DO KOMMO
-        if lead_id and isinstance(lead_id, str) and len(lead_id) > 30 and lead_id.count('-') >= 4:
-            emoji_logger.system_error("UUID_BLOCK", f"🚫 KOMMO UUID DETECTADO E BLOQUEADO: {lead_id}")
-            emoji_logger.system_error("FORCE_PHONE", f"🔄 FORÇANDO BUSCA POR PHONE: {phone_number}")
+        # Verificar se lead existe na tabela
+        if lead_id:
+            lead_check = self.client.table('leads').select('id').eq('id', lead_id).execute()
+            if not lead_check.data:
+                emoji_logger.system_error("LEAD_NOT_FOUND", f"❌ Lead {lead_id} não encontrado - corrigindo")
 
             # BUSCA FORÇADA POR PHONE
             if phone_number:
