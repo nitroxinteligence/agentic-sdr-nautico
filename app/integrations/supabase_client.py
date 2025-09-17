@@ -157,6 +157,20 @@ class SupabaseClient:
         return None
 
     @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    async def get_lead_by_kommo_id(
+            self, kommo_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Busca lead por kommo_lead_id com retry automático"""
+        result = self.client.table('leads').select("*").eq(
+            'kommo_lead_id', kommo_id
+        ).execute()
+
+        if result.data:
+            return result.data[0]
+
+        return None
+
+    @supabase_retry(max_attempts=3, delay=1.0, backoff_factor=2.0)
     async def update_lead(
             self, lead_id: str, update_data: Dict[str, Any]
     ) -> Dict[str, Any]:

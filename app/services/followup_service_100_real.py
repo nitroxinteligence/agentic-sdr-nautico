@@ -122,12 +122,30 @@ class FollowUpServiceReal:
                 emoji_logger.service_error(f"❌ BLOQUEADO: Não foi possível obter lead_id válido para follow-up de {clean_phone}")
                 return {"success": False, "error": "invalid_lead_id"}
 
+            # VALIDAÇÃO FINAL: Verificar se o lead_id realmente existe antes de criar follow-up
+            emoji_logger.service_info(f"🔍 VALIDAÇÃO FINAL: Verificando se lead_id {supabase_lead_id} existe antes de criar follow-up")
+
+            try:
+                lead_check = self.db.client.table('leads').select('id, phone_number, name').eq('id', supabase_lead_id).execute()
+                if not lead_check.data:
+                    emoji_logger.service_error(f"❌ BLOQUEADO: Lead ID {supabase_lead_id} NÃO EXISTE na tabela leads!")
+                    return {"success": False, "error": "lead_not_found", "lead_id": supabase_lead_id}
+
+                lead_data = lead_check.data[0]
+                emoji_logger.service_info(f"✅ VALIDAÇÃO OK: Lead existe - ID: {lead_data.get('id')}, Phone: {lead_data.get('phone_number')}, Nome: {lead_data.get('name')}")
+
+            except Exception as e:
+                emoji_logger.service_error(f"❌ ERRO na validação final do lead: {e}")
+                return {"success": False, "error": "validation_failed"}
+
             followup_data = {
                 "lead_id": supabase_lead_id, "phone_number": clean_phone,
                 "message": message, "scheduled_at": scheduled_time.isoformat(),
                 "status": "pending", "type": "reminder",
                 "created_at": datetime.now().isoformat()
             }
+
+            emoji_logger.service_info(f"🚀 Criando follow-up com dados validados: {followup_data}")
             result = await self.db.create_follow_up(followup_data)
             followup_id = result.get(
                 "id", f"followup_{datetime.now().timestamp()}"
@@ -433,11 +451,26 @@ class FollowUpServiceReal:
 
         emoji_logger.service_error(f"🔍 _get_or_create_supabase_lead_id CHAMADA: phone='{phone}', lead_info: {lead_info}")
 
-        # CORREÇÃO CRÍTICA: Se phone está vazio MAS lead já existe (tem ID),
-        # NUNCA criar novo lead - sempre retornar ID existente
-        if lead_info.get("id"):
-            emoji_logger.service_warning(f"🔍 Lead já existe com ID: {lead_info.get('id')} - RETORNANDO ID EXISTENTE")
-            return str(lead_info["id"])
+        # CORREÇÃO CRÍTICA: Se lead_info tem ID do Kommo, buscar o ID do Supabase correspondente
+        kommo_id = lead_info.get("id")
+        if kommo_id:
+            emoji_logger.service_warning(f"🔍 Lead tem Kommo ID: {kommo_id} - BUSCANDO ID SUPABASE CORRESPONDENTE")
+
+            # Buscar lead pelo kommo_lead_id
+            existing_lead = await supabase_client.get_lead_by_kommo_id(str(kommo_id))
+            if existing_lead:
+                emoji_logger.service_info(f"✅ Encontrado lead Supabase ID: {existing_lead['id']} para Kommo ID: {kommo_id}")
+                return existing_lead["id"]
+
+            # Se não encontrou pelo Kommo ID, tentar pelo telefone
+            if phone:
+                phone_lead = await supabase_client.get_lead_by_phone(phone)
+                if phone_lead:
+                    emoji_logger.service_info(f"✅ Encontrado lead por telefone - Supabase ID: {phone_lead['id']}")
+                    # Atualizar com o kommo_id se necessário
+                    if phone_lead.get("kommo_lead_id") != str(kommo_id):
+                        await supabase_client.update_lead(phone_lead["id"], {"kommo_lead_id": str(kommo_id)})
+                    return phone_lead["id"]
 
         # Se não tem telefone válido E não tem ID, BLOQUEAR criação
         if not phone or len(phone.strip()) < 10:
