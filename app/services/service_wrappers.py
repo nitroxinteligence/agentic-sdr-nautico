@@ -235,6 +235,29 @@ class KnowledgeServiceWrapper:
             raise ServiceNotEnabledError(f"{self.service_name} não foi inicializado")
         return self.knowledge_service.clear_cache()
 
+    async def auto_learn_from_interaction(
+        self, user_message: str, ai_response: str, lead_info: Dict[str, Any] = None
+    ) -> bool:
+        """Aprende automaticamente de interações interessantes"""
+        self._check_enabled()
+        if not self.knowledge_service:
+            raise ServiceNotEnabledError(f"{self.service_name} não foi inicializado")
+        return await self.knowledge_service.auto_learn_from_interaction(
+            user_message, ai_response, lead_info
+        )
+
+    async def add_knowledge_from_conversation(
+        self, question: str, answer: str, category: str = "conversa",
+        keywords: str = None, lead_info: Dict[str, Any] = None
+    ) -> bool:
+        """Adiciona novo conhecimento à base automaticamente baseado em conversas"""
+        self._check_enabled()
+        if not self.knowledge_service:
+            raise ServiceNotEnabledError(f"{self.service_name} não foi inicializado")
+        return await self.knowledge_service.add_knowledge_from_conversation(
+            question, answer, category, keywords, lead_info
+        )
+
 
 class RedisServiceWrapper:
     """
