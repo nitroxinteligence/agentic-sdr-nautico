@@ -89,7 +89,12 @@ class KnowledgeService:
             if doc.get("answer"):
                 doc_text += doc["answer"].lower() + " "
             if doc.get("keywords"):
-                doc_text += doc["keywords"].lower() + " "
+                # Keywords podem ser lista (array) ou string
+                keywords = doc["keywords"]
+                if isinstance(keywords, list):
+                    doc_text += " ".join(keywords).lower() + " "
+                else:
+                    doc_text += keywords.lower() + " "
             if doc.get("category"):
                 doc_text += doc["category"].lower() + " "
 
@@ -115,8 +120,15 @@ class KnowledgeService:
             # Bonus para matches exatos em campos importantes
             if query in doc.get("question", "").lower():
                 similarity += 0.5
-            if query in doc.get("keywords", "").lower():
-                similarity += 0.3
+            # Bonus para keywords (tratar array ou string)
+            keywords = doc.get("keywords", "")
+            if keywords:
+                if isinstance(keywords, list):
+                    keywords_text = " ".join(keywords).lower()
+                else:
+                    keywords_text = keywords.lower()
+                if query in keywords_text:
+                    similarity += 0.3
             if query in doc.get("category", "").lower():
                 similarity += 0.2
 
@@ -189,20 +201,26 @@ class KnowledgeService:
             if not keywords:
                 keywords = self._extract_keywords(question + " " + answer)
 
-            # Preparar dados do conhecimento
-            knowledge_data = {
-                "question": question.strip(),
-                "answer": answer.strip(),
-                "category": category,
-                "keywords": keywords,
+            # Preparar metadados
+            metadata = {
                 "source": "auto_conversation",
-                "auto_generated": True
+                "auto_generated": True,
+                "priority": "baixa"
             }
 
             # Adicionar informações do lead se disponível
             if lead_info:
-                knowledge_data["source_lead_id"] = lead_info.get("id")
-                knowledge_data["source_phone"] = lead_info.get("phone_number")
+                metadata["source_lead_id"] = lead_info.get("id")
+                metadata["source_phone"] = lead_info.get("phone_number")
+
+            # Preparar dados do conhecimento (apenas campos que existem na tabela)
+            knowledge_data = {
+                "question": question.strip(),
+                "answer": answer.strip(),
+                "category": category,
+                "keywords": keywords.split(', ') if isinstance(keywords, str) else keywords,  # Converter para array
+                "metadata": metadata
+            }
 
             # Salvar na base de conhecimento
             logger.info(f"📚 Tentando salvar conhecimento: {knowledge_data}")
