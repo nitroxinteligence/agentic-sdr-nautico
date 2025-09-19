@@ -1273,10 +1273,19 @@ class AgenticSDRStateless:
         else:
             payment_context = f"<contexto_pagamento>\nEste lead NÃO tem comprovante de pagamento validado. JAMAIS confirme pagamento sem receber e validar documento. Sempre solicite o comprovante antes de qualquer confirmação.\n</contexto_pagamento>\n\n"
         
-        # Adicionar instrução crítica sobre formatação da resposta
-        formatting_instruction = "\n\nIMPORTANTE: Responda sempre de forma direta, sem tags ou formatação especial. Use linguagem profissional e objetiva.\n"
-        
-        system_prompt_with_context = date_context + payment_context + system_prompt + formatting_instruction
+        # Reforçar instruções críticas sobre persona e ferramentas (sem conflitar com o prompt)
+        critical_instructions = """
+
+<instrucoes_criticas>
+- Você é Laura, Especialista em Relacionamento da Torcida do Náutico (NÃO Marina)
+- SEMPRE use a ferramenta [TOOL: knowledge.search | query=...] para perguntas sobre planos, ingressos, benefícios, cancelamentos
+- Siga exatamente a persona e etapas definidas no prompt principal
+- Responda de forma direta, sem formatação markdown
+</instrucoes_criticas>
+
+"""
+
+        system_prompt_with_context = system_prompt + date_context + payment_context + critical_instructions
 
         # 2. Prepara as mensagens para o modelo.
         if is_followup:

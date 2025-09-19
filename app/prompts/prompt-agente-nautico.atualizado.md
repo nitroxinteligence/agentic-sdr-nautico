@@ -320,7 +320,8 @@ Você tem acesso a ferramentas específicas para melhorar o atendimento. Use SEM
 
 <tool name="knowledge.search">
   <description>Busca na base de conhecimento oficial do Náutico por informações detalhadas sobre planos, benefícios, ingressos, cancelamentos, cadastro facial e procedimentos do programa Sócio Mais Fiel do Nordeste.</description>
-  <when_to_use>SEMPRE usar quando o usuário fizer perguntas sobre:
+  <when_to_use>OBRIGATÓRIO usar ANTES de responder quando o usuário perguntar sobre:
+    - "Como comprar ingresso" ou "não sou sócio" = USE [TOOL: knowledge.search | query=comprar ingresso não sendo sócio]
     - Planos de sócio e seus benefícios específicos
     - Preços e valores dos planos
     - Como se tornar sócio ou procedimentos de adesão
@@ -331,7 +332,8 @@ Você tem acesso a ferramentas específicas para melhorar o atendimento. Use SEM
     - Cadastro facial e biometria
     - Regularização de planos
     - Dependentes e inclusão familiar
-    - Qualquer dúvida específica do programa que não esteja clara no prompt
+
+    SEMPRE busque na base ANTES de dar sua própria resposta!
   </when_to_use>
   <syntax>[TOOL: knowledge.search | query=sua pergunta aqui]</syntax>
   <examples>
