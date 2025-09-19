@@ -72,6 +72,13 @@ class CRMServiceReal:
         self._stages_cache = None
         self._cache_ttl = 3600
         self._cache_timestamp = None
+
+        # Proteção contra atividade suspeita (conforme doc Kommo)
+        self._suspicious_activity_tracker = {
+            "duplicate_requests": {},  # {phone: count}
+            "last_request_time": {},   # {phone: timestamp}
+            "blocked_phones": set()    # phones temporariamente bloqueados
+        }
         self.custom_fields = {
             "phone": None, "whatsapp": None, "bill_value": None,
             "valor_conta": None, "solution_type": None,
@@ -94,6 +101,50 @@ class CRMServiceReal:
             "Não Definido": 326366, "Programa Fidelidade": 1078618,
             "Cartão Torcedor": 1078620, "Plano Especial": 1078622
         }
+
+    def _check_suspicious_activity(self, phone_number: str, operation: str) -> bool:
+        """
+        Verifica atividade suspeita conforme documentação Kommo:
+        - Múltiplas requisições da mesma data em pouco tempo
+        - Iteração descontrolada
+        """
+        import time
+
+        current_time = time.time()
+
+        # Verificar se phone está temporariamente bloqueado
+        if phone_number in self._suspicious_activity_tracker["blocked_phones"]:
+            emoji_logger.service_warning(f"🚫 Phone {phone_number} bloqueado por atividade suspeita")
+            return True
+
+        # Verificar duplicatas em menos de 30 segundos
+        last_time = self._suspicious_activity_tracker["last_request_time"].get(phone_number, 0)
+        if current_time - last_time < 30:  # Menos de 30 segundos
+            # Incrementar contador de duplicatas
+            count = self._suspicious_activity_tracker["duplicate_requests"].get(phone_number, 0) + 1
+            self._suspicious_activity_tracker["duplicate_requests"][phone_number] = count
+
+            if count >= 3:  # 3 ou mais requests em 30s = suspeito
+                emoji_logger.service_warning(
+                    f"🚨 ATIVIDADE SUSPEITA: {phone_number} fez {count} requests em <30s - bloqueando por 5min"
+                )
+                self._suspicious_activity_tracker["blocked_phones"].add(phone_number)
+                # Agendar desbloqueio após 5 minutos
+                asyncio.create_task(self._unblock_phone_after_delay(phone_number, 300))
+                return True
+        else:
+            # Reset contador se passou mais de 30s
+            self._suspicious_activity_tracker["duplicate_requests"][phone_number] = 1
+
+        # Atualizar último request time
+        self._suspicious_activity_tracker["last_request_time"][phone_number] = current_time
+        return False
+
+    async def _unblock_phone_after_delay(self, phone_number: str, delay_seconds: int):
+        """Remove phone da lista de bloqueados após delay"""
+        await asyncio.sleep(delay_seconds)
+        self._suspicious_activity_tracker["blocked_phones"].discard(phone_number)
+        emoji_logger.service_info(f"📞 Phone {phone_number} desbloqueado após {delay_seconds}s")
 
     async def _get_session(self):
         connector = aiohttp.TCPConnector(
@@ -251,6 +302,15 @@ class CRMServiceReal:
             self, lead_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Cria lead REAL no Kommo"""
+
+        # Verificar atividade suspeita
+        phone_number = lead_data.get("phone_number", "")
+        if self._check_suspicious_activity(phone_number, "create_lead"):
+            return {
+                "success": False,
+                "message": f"Atividade suspeita detectada para {phone_number} - request bloqueado",
+                "error_code": "SUSPICIOUS_ACTIVITY"
+            }
         if not self.is_initialized:
             await self.initialize()
         try:
@@ -364,6 +424,24 @@ class CRMServiceReal:
                             "success": True, "lead_id": lead_id,
                             "message": "Lead criado com sucesso"
                         }
+                    elif response.status == 429:
+                        # Rate limit exceeded - aguardar e tentar novamente
+                        emoji_logger.service_warning(f"🚫 HTTP 429: Rate limit excedido no Kommo - aguardando...")
+                        await asyncio.sleep(5)  # Aguardar 5 segundos
+                        raise KommoAPIException(
+                            "Rate limit excedido - tentando novamente",
+                            error_code="KOMMO_RATE_LIMIT",
+                            details={"status_code": 429, "retry_after": 5}
+                        )
+                    elif response.status == 403:
+                        # IP bloqueado - erro crítico
+                        error_text = await response.text()
+                        emoji_logger.service_error(f"🚨 HTTP 403: IP BLOQUEADO no Kommo - {error_text}")
+                        raise KommoAPIException(
+                            f"IP bloqueado pelo Kommo: {error_text}",
+                            error_code="KOMMO_IP_BLOCKED",
+                            details={"status_code": 403, "response": error_text}
+                        )
                     else:
                         error_text = await response.text()
                         raise KommoAPIException(
@@ -638,6 +716,24 @@ class CRMServiceReal:
                             "message": f"Lead movido para {stage_name}",
                             "stage_id": stage_id, "lead_id": lead_id
                         }
+                    elif response.status == 429:
+                        # Rate limit exceeded
+                        emoji_logger.service_warning(f"🚫 HTTP 429: Rate limit excedido no update_lead_stage")
+                        await asyncio.sleep(5)
+                        raise KommoAPIException(
+                            "Rate limit excedido - tentando novamente",
+                            error_code="KOMMO_RATE_LIMIT",
+                            details={"status_code": 429, "retry_after": 5}
+                        )
+                    elif response.status == 403:
+                        # IP bloqueado
+                        error_text = await response.text()
+                        emoji_logger.service_error(f"🚨 HTTP 403: IP BLOQUEADO no update_lead_stage - {error_text}")
+                        raise KommoAPIException(
+                            f"IP bloqueado pelo Kommo: {error_text}",
+                            error_code="KOMMO_IP_BLOCKED",
+                            details={"status_code": 403, "response": error_text}
+                        )
                     else:
                         error_text = await response.text()
                         raise KommoAPIException(

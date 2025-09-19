@@ -93,7 +93,7 @@ class ServiceRateLimiters:
     def __init__(self):
         self.limiters: Dict[str, RateLimiter] = {}
         self.default_configs = {
-            "kommo": {"max_requests": 5, "time_window": 10, "burst_size": 2},
+            "kommo": {"max_requests": 6, "time_window": 1, "burst_size": 12},
             "google": {"max_requests": 10, "time_window": 1, "burst_size": 5},
             "openai": {
                 "max_requests": 50, "time_window": 60, "burst_size": 10

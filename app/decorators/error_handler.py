@@ -94,7 +94,7 @@ def async_handle_errors_with_fallback(fallback_func: Callable = None):
     return decorator
 
 
-def handle_kommo_errors(max_retries: int = 0, delay: float = 1.0):
+def handle_kommo_errors(max_retries: int = 3, delay: float = 2.0):
     """Decorator specifically for handling Kommo API errors"""
     return async_handle_errors(
         retry_policy='kommo_api', max_retries=max_retries, delay=delay
