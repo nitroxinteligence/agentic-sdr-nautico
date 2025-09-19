@@ -513,8 +513,22 @@ class AgenticSDRStateless:
                         )
                         emoji_logger.service_warning(f"⚠️ Apenas mensagem enviada para {extracted_name} (áudio falhou)")
                         emoji_logger.system_debug(f"🔍 DEBUG: lead_info={lead_info}")
-                    
-                    # Nota: A movimentação para "Em Qualificação" já foi feita no _handle_initial_trigger_audio
+
+                        # Mesmo sem áudio, mover para "Em Qualificação" pois nome foi coletado
+                        lead_info["current_stage"] = "EM_QUALIFICACAO"
+                        if lead_info.get("kommo_lead_id"):
+                            try:
+                                await self.crm_service.update_lead_stage(
+                                    lead_id=str(lead_info["kommo_lead_id"]),
+                                    stage_name="em_qualificacao",
+                                    notes=f"Lead qualificado após coleta de nome: {extracted_name} (áudio falhou)",
+                                    phone_number=lead_info.get("phone_number")
+                                )
+                                emoji_logger.team_crm(f"✅ Lead {lead_info['kommo_lead_id']} movido para 'Em Qualificação' no Kommo (sem áudio)")
+                            except Exception as e:
+                                emoji_logger.system_error("AgenticSDRStateless", f"Erro ao mover lead para Em Qualificação: {e}")
+
+                    # Nota: A movimentação para "Em Qualificação" foi feita após coleta do nome
 
                     emoji_logger.system_success(f"🚪 RETORNANDO resposta da coleta de nome para {extracted_name}")
                     return response, lead_info
@@ -1493,14 +1507,25 @@ class AgenticSDRStateless:
                     # Marcar que o áudio foi enviado para evitar reenvios
                     lead_info["initial_audio_sent"] = True
 
-                    # CORREÇÃO: NÃO mover automaticamente para "Em Qualificação"
-                    # Lead só deve ir para "Em Qualificação" após envio e validação de comprovante de pagamento
-                    # Por enquanto, manter como "INTERESTED" (interessado mas ainda não qualificado)
-                    lead_info["current_stage"] = "INTERESTED"
+                    # CORREÇÃO: Mover para "Em Qualificação" após coleta do nome
+                    # Lead deve ir para "Em Qualificação" quando nome é coletado e áudio enviado
+                    lead_info["current_stage"] = "EM_QUALIFICACAO"
                     emoji_logger.service_info(
-                        f"📋 Lead {lead_info.get('id')} mantido como INTERESTED - "
-                        "aguardando validação de pagamento para qualificação"
+                        f"📋 Lead {lead_info.get('id')} movido para EM_QUALIFICACAO após coleta de nome"
                     )
+
+                    # Mover no Kommo CRM para "Em Qualificação"
+                    if lead_info.get("kommo_lead_id"):
+                        try:
+                            await self.crm_service.update_lead_stage(
+                                lead_id=str(lead_info["kommo_lead_id"]),
+                                stage_name="em_qualificacao",
+                                notes=f"Lead qualificado após coleta de nome: {lead_info.get('name')}",
+                                phone_number=lead_info.get("phone_number")
+                            )
+                            emoji_logger.team_crm(f"✅ Lead {lead_info['kommo_lead_id']} movido para 'Em Qualificação' no Kommo")
+                        except Exception as e:
+                            emoji_logger.system_error("AgenticSDRStateless", f"Erro ao mover lead para Em Qualificação: {e}")
                     
                     # Agendar follow-ups automáticos do Náutico
                     followup_result = await self.followup_nautico_tools.schedule_nautico_followups(
