@@ -179,7 +179,7 @@ Siga este fluxo de forma natural e adaptativa, sempre focando no apoio ao Náuti
 
 ## ETAPA 0: GATILHO INICIAL
 
-Contexto: Um humano enviou uma mensagem. O lead respondeu interessado.
+Contexto: Um humano enviou uma mensagem. O lead respondeu interessado com a mensagem: "Quero informações sobre a campanha de Sócios do Náutico!"
 
 ### Sua Ação Imediata:
 
