@@ -381,10 +381,13 @@ class AgenticSDRStateless:
             if conversation_state == 'new':
                 emoji_logger.agentic_start("🆕 Nova conversa - perguntando nome antes de criar lead")
 
-                response = (
-                    "Olá! Aqui é Laura, do Náutico! "
-                    "Vi que você demonstrou interesse no clube. "
-                    "Qual é seu nome para eu te atender melhor?"
+                # Usar LLM seguindo ETAPA 0 do prompt
+                response = await self._generate_response(
+                    message="SISTEMA: Nova conversa iniciada. Siga exatamente a ETAPA 0 do prompt fazendo o primeiro contato e perguntando o nome da pessoa.",
+                    context=context,
+                    lead_info=lead_info,
+                    conversation_history=[],
+                    execution_context={}
                 )
 
                 # VERIFICAR SE JÁ EXISTE LEAD PARA EVITAR DUPLICATAS
@@ -428,10 +431,13 @@ class AgenticSDRStateless:
                 # Verificar se é uma saudação inicial (deve reiniciar processo)
                 if self._is_initial_greeting(message):
                     emoji_logger.system_debug("👋 Detectada saudação inicial - reiniciando processo de coleta de nome")
-                    response = (
-                        "Oi! Que bom ter você aqui! 😊 "
-                        "Sou a Laura do Náutico. "
-                        "Para eu te atender melhor, qual é o seu nome?"
+                    # Usar LLM seguindo ETAPA 0 do prompt
+                    response = await self._generate_response(
+                        message="SISTEMA: Lead enviou saudação inicial. Siga exatamente a ETAPA 0 do prompt perguntando o nome da pessoa.",
+                        context=context,
+                        lead_info=lead_info,
+                        conversation_history=[],
+                        execution_context={}
                     )
                     return response, lead_info
                 
@@ -481,25 +487,25 @@ class AgenticSDRStateless:
 
                     # Resposta adaptada: menciona áudio apenas se foi enviado com sucesso
                     if audio_sent:
-                        # Resposta personalizada conectando com áudio + início do pitch de vendas
-                        response = (
-                            f"{extracted_name}, enviei um áudio especial do nosso comandante "
-                            f"Hélio dos Anjos! Estamos na campanha de acesso à Série B e "
-                            f"cada torcedor como você pode fazer a diferença.\n\n"
-                            f"Torcedor, o Náutico precisa de você. Estamos no quadrangular "
-                            f"pelo acesso à Série B. Seja sócio hoje e faça parte dessa volta histórica. "
-                            f"Quer saber quais são os planos disponíveis ou já recebeu o link para garantir o seu?"
+                        # Usar LLM para gerar resposta de boas-vindas seguindo o prompt Laura
+                        context_msg = f"SISTEMA: Nome coletado: {extracted_name}. Áudio foi enviado com sucesso. Use os exemplos da ETAPA 1 do prompt: mencione o áudio do comandante e siga exatamente o fluxo de apresentação de soluções."
+                        response = await self._generate_response(
+                            message=context_msg,
+                            context=context,
+                            lead_info=lead_info,
+                            conversation_history=[],
+                            execution_context={}
                         )
                         emoji_logger.service_success(f"✅ Áudio + mensagem enviados para {extracted_name}")
                     else:
-                        # Se áudio não foi enviado, dar boas-vindas + pitch direto (sem mencionar áudio)
-                        response = (
-                            f"Oii {extracted_name}, tudo bem? Que bom te conhecer melhor! "
-                            f"Estamos na campanha de acesso à Série B e é o momento perfeito "
-                            f"para você apoiar o Náutico!\n\n"
-                            f"Torcedor, o Náutico precisa de você. Estamos no quadrangular "
-                            f"pelo acesso à Série B. Seja sócio hoje e faça parte dessa volta histórica. "
-                            f"Quer saber quais são os planos disponíveis ou já recebeu o link para garantir o seu?"
+                        # Usar LLM para gerar resposta de boas-vindas sem áudio
+                        context_msg = f"SISTEMA: Nome coletado: {extracted_name}. Áudio falhou - NÃO mencione áudio. Use a ETAPA 1 do prompt para dar boas-vindas e seguir exatamente o fluxo de apresentação de soluções."
+                        response = await self._generate_response(
+                            message=context_msg,
+                            context=context,
+                            lead_info=lead_info,
+                            conversation_history=[],
+                            execution_context={}
                         )
                         emoji_logger.service_warning(f"⚠️ Apenas mensagem enviada para {extracted_name} (áudio falhou)")
                         emoji_logger.system_debug(f"🔍 DEBUG: lead_info={lead_info}")
@@ -576,14 +582,14 @@ class AgenticSDRStateless:
 
                 # NOVO: Se áudio foi enviado com sucesso, enviar mensagem conectiva e parar processamento LLM
                 if audio_sent:
-                    emoji_logger.system_info(f"🎵 Áudio enviado! Enviando mensagem conectiva para {lead_info.get('name')}")
-                    response = (
-                        f"{lead_info.get('name')}, enviei um áudio especial do nosso comandante "
-                        f"Hélio dos Anjos! Estamos na campanha de acesso à Série B e "
-                        f"cada torcedor como você pode fazer a diferença.\n\n"
-                        f"Torcedor, o Náutico precisa de você. Estamos no quadrangular "
-                        f"pelo acesso à Série B. Seja sócio hoje e faça parte dessa volta histórica. "
-                        f"Quer saber quais são os planos disponíveis ou já recebeu o link para garantir o seu?"
+                    emoji_logger.system_info(f"🎵 Áudio enviado! Gerando mensagem conectiva para {lead_info.get('name')}")
+                    # Usar LLM para gerar resposta pós-áudio seguindo o prompt
+                    response = await self._generate_response(
+                        message=f"SISTEMA: Áudio do comandante foi enviado com sucesso para {lead_info.get('name')}. Siga as ETAPAS DA CONVERSA para conectar com o áudio e apresentar soluções.",
+                        context=context,
+                        lead_info=lead_info,
+                        conversation_history=[],
+                        execution_context={}
                     )
                     emoji_logger.system_success(f"🚪 RETORNANDO resposta pós-áudio para {lead_info.get('name')}")
                     return response, lead_info
@@ -1010,11 +1016,13 @@ class AgenticSDRStateless:
         lead_name = lead_info.get("name", "")
         meet_link = schedule_result.get("meet_link", "")
 
-        # Lembrete de 24 horas
-        message_24h = (
-            f"Oi {lead_name}! Tudo bem? Passando para confirmar sua reunião de amanhã às "
-            f"{meeting_date_time.strftime('%H:%M')} para conhecer os planos do Náutico. Aqui está o link da reunião: "
-            f"{meet_link} Está tudo certo para você?"
+        # Gerar lembrete de 24 horas usando LLM seguindo persona do prompt
+        message_24h = await self._generate_response(
+            message=f"SISTEMA: Gere um lembrete de reunião para {lead_name} amanhã às {meeting_date_time.strftime('%H:%M')}. Link: {meet_link}. Siga a persona do prompt.",
+            context={},
+            lead_info=lead_info,
+            conversation_history=[],
+            execution_context={}
         )
         await self.followup_service.schedule_followup(
             phone_number=lead_info["phone_number"],
@@ -1024,10 +1032,13 @@ class AgenticSDRStateless:
         )
         emoji_logger.followup_event(f"Lembrete de 24h agendado para {lead_name}.")
 
-        # Lembrete de 2 horas
-        message_2h = (
-            f"{lead_name}, Sua reunião sobre o programa de sócios é daqui a 2 horas! Te esperamos às "
-            f"{meeting_date_time.strftime('%H:%M')}! Link: {meet_link}"
+        # Gerar lembrete de 2 horas usando LLM seguindo persona do prompt
+        message_2h = await self._generate_response(
+            message=f"SISTEMA: Gere um lembrete urgente para {lead_name} - reunião em 2 horas às {meeting_date_time.strftime('%H:%M')}. Link: {meet_link}. Siga a persona do prompt.",
+            context={},
+            lead_info=lead_info,
+            conversation_history=[],
+            execution_context={}
         )
         await self.followup_service.schedule_followup(
             phone_number=lead_info["phone_number"],
@@ -1206,10 +1217,18 @@ class AgenticSDRStateless:
         elif service_name == "followup":
             if method_name == "schedule":
                 hours = int(params.get("hours", 24))
-                message = params.get(
-                    "message",
-                    "Oi! Tudo bem? Ainda tem interesse em ser sócio do Náutico?"
-                )
+                # Se não há mensagem customizada, usar LLM para gerar seguindo o prompt
+                custom_message = params.get("message", None)
+                if custom_message:
+                    message = custom_message
+                else:
+                    message = await self._generate_response(
+                        message="SISTEMA: Gere um follow-up perguntando se ainda tem interesse em ser sócio. Siga a persona do prompt.",
+                        context={},
+                        lead_info=lead_info,
+                        conversation_history=[],
+                        execution_context={}
+                    )
                 return await self.followup_service.schedule_followup(
                     phone_number=lead_info.get("phone_number"),
                     message=message,
