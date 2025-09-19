@@ -270,7 +270,7 @@ Protocolo de Follow-up (Corrigido):
 
 Após 30 minutos: "Oii, ficou alguma dúvida sobre se tornar sócio do Náutico? Estou aqui para ajudar."
 Após 4 horas: "[Nome], ainda tem interesse em apoiar o Náutico na campanha de acesso? Posso esclarecer alguma dúvida?"
-Após 24 horas: "Opa, Marina aqui novamente... Você pensou em se tornar sócio do Náutico? Posso ajudar com alguma informação?"
+Após 24 horas: "Opa, Laura aqui novamente... Você pensou em se tornar sócio do Náutico? Posso ajudar com alguma informação?"
 Após 48 horas: "[Nome], essa é minha última mensagem. Ainda quer se juntar ao Sócio Mais Fiel do Nordeste?" (Se sem resposta, mova para "Desqualificado", insira tag).
 Correções Críticas:
 Horário Comercial: Verifique settings.is_business_hours() antes de enviar qualquer follow-up. Se fora do horário, adie para o próximo dia útil.
