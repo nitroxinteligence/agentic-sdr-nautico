@@ -387,7 +387,8 @@ class AgenticSDRStateless:
                     context={},
                     lead_info=lead_info,
                     conversation_history=[],
-                    execution_context={}
+                    execution_context={},
+                    is_followup=True
                 )
 
                 # VERIFICAR SE JÁ EXISTE LEAD PARA EVITAR DUPLICATAS
@@ -437,7 +438,8 @@ class AgenticSDRStateless:
                         context={},
                         lead_info=lead_info,
                         conversation_history=[],
-                        execution_context={}
+                        execution_context={},
+                        is_followup=True
                     )
                     return response, lead_info
                 
@@ -494,7 +496,8 @@ class AgenticSDRStateless:
                             context={},
                             lead_info=lead_info,
                             conversation_history=[],
-                            execution_context={}
+                            execution_context={},
+                            is_followup=True
                         )
                         emoji_logger.service_success(f"✅ Áudio + mensagem enviados para {extracted_name}")
                     else:
@@ -505,7 +508,8 @@ class AgenticSDRStateless:
                             context={},
                             lead_info=lead_info,
                             conversation_history=[],
-                            execution_context={}
+                            execution_context={},
+                            is_followup=True
                         )
                         emoji_logger.service_warning(f"⚠️ Apenas mensagem enviada para {extracted_name} (áudio falhou)")
                         emoji_logger.system_debug(f"🔍 DEBUG: lead_info={lead_info}")
@@ -589,7 +593,8 @@ class AgenticSDRStateless:
                         context={},
                         lead_info=lead_info,
                         conversation_history=[],
-                        execution_context={}
+                        execution_context={},
+                        is_followup=True
                     )
                     emoji_logger.system_success(f"🚪 RETORNANDO resposta pós-áudio para {lead_info.get('name')}")
                     return response, lead_info
@@ -1022,7 +1027,8 @@ class AgenticSDRStateless:
             context={},
             lead_info=lead_info,
             conversation_history=[],
-            execution_context={}
+            execution_context={},
+            is_followup=True
         )
         await self.followup_service.schedule_followup(
             phone_number=lead_info["phone_number"],
@@ -1038,7 +1044,8 @@ class AgenticSDRStateless:
             context={},
             lead_info=lead_info,
             conversation_history=[],
-            execution_context={}
+            execution_context={},
+            is_followup=True
         )
         await self.followup_service.schedule_followup(
             phone_number=lead_info["phone_number"],
@@ -1227,7 +1234,8 @@ class AgenticSDRStateless:
                         context={},
                         lead_info=lead_info,
                         conversation_history=[],
-                        execution_context={}
+                        execution_context={},
+                        is_followup=True
                     )
                 return await self.followup_service.schedule_followup(
                     phone_number=lead_info.get("phone_number"),
