@@ -384,7 +384,7 @@ class AgenticSDRStateless:
                 # Usar LLM seguindo ETAPA 0 do prompt
                 response = await self._generate_response(
                     message="SISTEMA: Nova conversa iniciada. Siga exatamente a ETAPA 0 do prompt fazendo o primeiro contato e perguntando o nome da pessoa.",
-                    context=context,
+                    context={},
                     lead_info=lead_info,
                     conversation_history=[],
                     execution_context={}
@@ -434,7 +434,7 @@ class AgenticSDRStateless:
                     # Usar LLM seguindo ETAPA 0 do prompt
                     response = await self._generate_response(
                         message="SISTEMA: Lead enviou saudação inicial. Siga exatamente a ETAPA 0 do prompt perguntando o nome da pessoa.",
-                        context=context,
+                        context={},
                         lead_info=lead_info,
                         conversation_history=[],
                         execution_context={}
@@ -491,7 +491,7 @@ class AgenticSDRStateless:
                         context_msg = f"SISTEMA: Nome coletado: {extracted_name}. Áudio foi enviado com sucesso. Use os exemplos da ETAPA 1 do prompt: mencione o áudio do comandante e siga exatamente o fluxo de apresentação de soluções."
                         response = await self._generate_response(
                             message=context_msg,
-                            context=context,
+                            context={},
                             lead_info=lead_info,
                             conversation_history=[],
                             execution_context={}
@@ -502,7 +502,7 @@ class AgenticSDRStateless:
                         context_msg = f"SISTEMA: Nome coletado: {extracted_name}. Áudio falhou - NÃO mencione áudio. Use a ETAPA 1 do prompt para dar boas-vindas e seguir exatamente o fluxo de apresentação de soluções."
                         response = await self._generate_response(
                             message=context_msg,
-                            context=context,
+                            context={},
                             lead_info=lead_info,
                             conversation_history=[],
                             execution_context={}
@@ -586,7 +586,7 @@ class AgenticSDRStateless:
                     # Usar LLM para gerar resposta pós-áudio seguindo o prompt
                     response = await self._generate_response(
                         message=f"SISTEMA: Áudio do comandante foi enviado com sucesso para {lead_info.get('name')}. Siga as ETAPAS DA CONVERSA para conectar com o áudio e apresentar soluções.",
-                        context=context,
+                        context={},
                         lead_info=lead_info,
                         conversation_history=[],
                         execution_context={}
