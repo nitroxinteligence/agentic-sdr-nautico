@@ -23,7 +23,7 @@ from app.config import settings
 
 # Importar serviços e wrappers
 from app.services.calendar_service_100_real import CalendarServiceReal
-from app.services.crm_service_100_real import CRMServiceReal
+from app.services.kommo_queue_service import kommo_queue_service
 from app.services.followup_service_100_real import FollowUpServiceReal
 from app.services.knowledge_service import KnowledgeService
 from app.services.crm_sync_service import crm_sync_service
@@ -55,7 +55,7 @@ class AgenticSDRStateless:
 
         # Instanciar serviços com wrappers condicionais
         calendar_real = CalendarServiceReal() if settings.enable_google_calendar else None
-        crm_real = CRMServiceReal() if settings.enable_kommo_crm else None
+        crm_real = kommo_queue_service if settings.enable_kommo_crm else None
         followup_real = FollowUpServiceReal() if settings.enable_follow_up_automation else None
         knowledge_real = KnowledgeService() if settings.enable_knowledge_base else None
         

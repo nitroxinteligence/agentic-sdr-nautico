@@ -15,7 +15,12 @@ class StageManagementTools:
     """Ferramentas para gerenciar movimentação de estágios no CRM"""
 
     def __init__(self, crm_service=None):
-        self.crm_service = crm_service
+        # Se não foi passado um serviço, usar o queue service
+        if crm_service is None:
+            from app.services.kommo_queue_service import kommo_queue_service
+            self.crm_service = kommo_queue_service
+        else:
+            self.crm_service = crm_service
         self.stage_map = {
             "novo_lead": settings.kommo_novo_lead_stage_id,
             "em_qualificacao": settings.kommo_em_qualificacao_stage_id, 

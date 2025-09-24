@@ -13,6 +13,7 @@ from app.integrations.evolution import evolution_client
 from app.integrations.redis_client import redis_client
 from app.config import settings
 from app.utils.logger import emoji_logger
+from app.services.kommo_queue_service import kommo_queue_service
 
 router = APIRouter()
 
@@ -289,3 +290,75 @@ async def fix_connections():
         "timestamp": datetime.now().isoformat(),
         "fixes_applied": results
     }
+
+
+@router.get("/kommo-queue")
+async def kommo_queue_status():
+    """Status detalhado da fila do Kommo CRM"""
+    try:
+        stats = kommo_queue_service.get_queue_stats()
+
+        # Adicionar informações extras
+        status_info = {
+            "queue_stats": stats,
+            "service_status": {
+                "processing": kommo_queue_service.processing,
+                "initialized": kommo_queue_service.crm_service.is_initialized if kommo_queue_service.crm_service else False,
+                "max_requests_per_second": kommo_queue_service.max_requests_per_second
+            },
+            "rate_limit_info": {
+                "blocked_until": kommo_queue_service.blocked_until,
+                "consecutive_429_errors": kommo_queue_service.consecutive_429_errors,
+                "consecutive_403_errors": kommo_queue_service.consecutive_403_errors
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+        # Classificar status geral
+        if stats.get("consecutive_403_errors", 0) > 0:
+            status_info["overall_status"] = "IP_BLOCKED"
+            status_info["status_message"] = "IP bloqueado pela API do Kommo"
+        elif stats.get("consecutive_429_errors", 0) > 2:
+            status_info["overall_status"] = "RATE_LIMITED"
+            status_info["status_message"] = "Rate limit ativo"
+        elif stats.get("queue_size", 0) > 10:
+            status_info["overall_status"] = "BUSY"
+            status_info["status_message"] = f"Fila com {stats.get('queue_size')} operações pendentes"
+        else:
+            status_info["overall_status"] = "HEALTHY"
+            status_info["status_message"] = "Sistema funcionando normalmente"
+
+        return status_info
+
+    except Exception as e:
+        return {
+            "error": str(e),
+            "timestamp": datetime.now().isoformat(),
+            "overall_status": "ERROR"
+        }
+
+
+@router.post("/kommo-queue/test")
+async def test_kommo_queue():
+    """Testa a fila do Kommo com operações simuladas"""
+    try:
+        # Teste simples de criação de lead
+        test_result = await kommo_queue_service.create_lead({
+            "name": "Teste API Queue",
+            "phone": f"5511999{int(datetime.now().timestamp()) % 100000:05d}",
+            "bill_value": 100.00
+        })
+
+        return {
+            "test_successful": test_result.get("success", False),
+            "result": test_result,
+            "timestamp": datetime.now().isoformat(),
+            "queue_stats": kommo_queue_service.get_queue_stats()
+        }
+
+    except Exception as e:
+        return {
+            "test_successful": False,
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }

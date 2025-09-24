@@ -76,13 +76,21 @@ class CalendarServiceWrapper:
 
 class CRMServiceWrapper:
     """
-    Wrapper condicional para CRMService
+    Wrapper condicional para CRMService com Queue
     Verifica ENABLE_CRM_INTEGRATION antes de executar operações
+    Usa KommoQueueService para respeitar rate limits
     """
 
-    def __init__(self, crm_service):
-        self.crm_service = crm_service
-        self.service_name = "Kommo CRM"
+    def __init__(self, crm_service=None):
+        # Se não foi passado um serviço, usar o queue service
+        if crm_service is None:
+            from app.services.kommo_queue_service import kommo_queue_service
+            self.crm_service = kommo_queue_service
+            self.is_queue_service = True
+        else:
+            self.crm_service = crm_service
+            self.is_queue_service = False
+        self.service_name = "Kommo CRM Queue"
 
     def _check_enabled(self):
         """Verifica se o serviço está habilitado"""

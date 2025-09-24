@@ -123,6 +123,11 @@ async def lifespan(app: FastAPI):
         # FollowUp Services (já inicializado no construtor)
         emoji_logger.system_ready("FollowUp Service")
 
+        # Inicializar Kommo Queue Service
+        from app.services.kommo_queue_service import kommo_queue_service
+        await kommo_queue_service.initialize()
+        emoji_logger.system_ready("Kommo Queue Service", data={"rate_limit": "6 req/s", "queue": "async"})
+
         # Inicializar Agente Principal
         agentic_sdr = AgenticSDRStateless()
         await agentic_sdr.initialize()
