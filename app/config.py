@@ -346,7 +346,7 @@ class Settings(BaseSettings):
         default=3, env="MAX_QUALIFICATION_ATTEMPTS"
     )
     primary_ai_model: str = Field(
-        default="gemini-2.5-pro", env="PRIMARY_AI_MODEL"
+        default="gpt-4o-mini", env="PRIMARY_AI_MODEL"
     )
     fallback_ai_model: str = Field(
         default="o3-mini", env="FALLBACK_AI_MODEL"

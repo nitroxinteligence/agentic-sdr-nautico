@@ -200,6 +200,20 @@ class ModelManager:
         if self.is_initialized:
             return
 
+        # Modelo primário - OpenAI
+        try:
+            if (settings.primary_ai_model.startswith("gpt") or settings.primary_ai_model.startswith("o3")):
+                self.primary_model = OpenAI(
+                    id=settings.primary_ai_model,
+                    api_key=settings.openai_api_key
+                )
+                emoji_logger.system_ready(
+                    "Modelo primário OpenAI configurado",
+                    model=settings.primary_ai_model
+                )
+        except Exception as e:
+            emoji_logger.system_warning(f"Erro ao configurar OpenAI: {e}")
+
         # Modelo primário - Gemini
         try:
             if settings.primary_ai_model.startswith("gemini"):

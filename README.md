@@ -46,7 +46,7 @@
 | **CRMService** | Sincronização completa com Kommo CRM: criação/atualização de leads, mudança de estágios e adição de tags. | ✅ 100% |
 | **FollowUpService** | Agendamento de mensagens de acompanhamento (follow-ups) através do Supabase e Redis. | ✅ 100% |
 | **MultimodalProcessor**| Processa mídias como áudio e imagens para extração de texto. | ✅ 100% |
-| **ModelManager** | Gerencia a comunicação com os LLMs (Gemini), incluindo a lógica de retry e fallback. | ✅ 100% |
+| **ModelManager** | Gerencia a comunicação com os LLMs (OpenAI/Gemini), incluindo a lógica de retry e fallback. | ✅ 100% |
 
 ## 📁 Estrutura do Projeto
 
@@ -129,7 +129,7 @@ GOOGLE_OAUTH_CLIENT_SECRET=seu-client-secret
 GOOGLE_OAUTH_REFRESH_TOKEN=seu-refresh-token-obtido-via-script
 
 # IA
-PRIMARY_AI_MODEL=gemini-1.5-pro
+PRIMARY_AI_MODEL=gpt-4o-mini
 AI_TEMPERATURE=0.7
 ```
 
