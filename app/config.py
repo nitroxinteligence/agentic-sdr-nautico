@@ -181,7 +181,7 @@ class Settings(BaseSettings):
     agno_fallback_model: str = Field(default="o1-mini")
     agno_max_tokens: int = Field(default=4096)
     agno_temperature: float = Field(default=0.5)
-    agno_reasoning_enabled: bool = Field(default=True)
+    agno_reasoning_enabled: bool = Field(default=False)
     max_message_length: int = Field(default=4096)
     webhook_timeout: int = Field(default=30)
     typing_simulation_delay: float = Field(default=2.0)

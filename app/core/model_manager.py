@@ -214,17 +214,22 @@ class ModelManager:
         except Exception as e:
             emoji_logger.system_warning(f"Erro ao configurar OpenAI: {e}")
 
-        # Modelo primário - Gemini
+        # Modelo primário - Gemini (somente se houver API key)
         try:
             if settings.primary_ai_model.startswith("gemini"):
-                self.primary_model = Gemini(
-                    id=settings.primary_ai_model,
-                    api_key=settings.gemini_api_key or settings.google_api_key
-                )
-                emoji_logger.system_ready(
-                    "Modelo primário Gemini configurado",
-                    model=settings.primary_ai_model
-                )
+                if settings.gemini_api_key or settings.google_api_key:
+                    self.primary_model = Gemini(
+                        id=settings.primary_ai_model,
+                        api_key=settings.gemini_api_key or settings.google_api_key
+                    )
+                    emoji_logger.system_ready(
+                        "Modelo primário Gemini configurado",
+                        model=settings.primary_ai_model
+                    )
+                else:
+                    emoji_logger.system_warning(
+                        "PRIMARY_AI_MODEL aponta para Gemini, mas nenhuma GEMINI_API_KEY/GOOGLE_API_KEY foi fornecida. Pulando Gemini."
+                    )
         except Exception as e:
             emoji_logger.system_warning(f"Erro ao configurar Gemini: {e}")
 
@@ -243,17 +248,22 @@ class ModelManager:
         except Exception as e:
             emoji_logger.system_warning(f"Erro ao configurar OpenAI: {e}")
 
-        # Modelo reasoning - Gemini thinking
+        # Modelo reasoning - Gemini thinking (somente se habilitado e houver API key)
         try:
             if settings.agno_reasoning_enabled:
-                self.reasoning_model = Gemini(
-                    id=settings.gemini_reasoning_model,
-                    api_key=settings.gemini_api_key or settings.google_api_key
-                )
-                emoji_logger.system_ready(
-                    "Modelo reasoning configurado",
-                    model=settings.gemini_reasoning_model
-                )
+                if settings.gemini_api_key or settings.google_api_key:
+                    self.reasoning_model = Gemini(
+                        id=settings.gemini_reasoning_model,
+                        api_key=settings.gemini_api_key or settings.google_api_key
+                    )
+                    emoji_logger.system_ready(
+                        "Modelo reasoning configurado",
+                        model=settings.gemini_reasoning_model
+                    )
+                else:
+                    emoji_logger.system_warning(
+                        "Reasoning habilitado, mas nenhuma GEMINI_API_KEY/GOOGLE_API_KEY foi fornecida. Pulando configuração do reasoning."
+                    )
         except Exception as e:
             emoji_logger.system_warning(f"Erro ao configurar reasoning: {e}")
 
@@ -342,7 +352,7 @@ class ModelManager:
                 # Fallback para outros modelos que possam ser adicionados
                 response = await model.achat(messages)
 
-            if response and response.content:
+            if response and getattr(response, "content", None):
                 emoji_logger.system_debug(
                     "Resposta recebida do LLM",
                     model=model.id,
@@ -354,11 +364,13 @@ class ModelManager:
                     "Resposta do LLM vazia",
                     model=model.id
                 )
-                return "Oi! Me da um minutinho que te respondo."
+                # Retorna None para permitir fallback em get_response
+                return None
 
         except Exception as e:
             emoji_logger.model_error(f"Erro ao chamar modelo: {e}")
-            return "Olá! Te retorno em alguns minutos!!"
+            # Retorna None para permitir fallback em get_response
+            return None
 
     async def retry_with_backoff(
             self,
