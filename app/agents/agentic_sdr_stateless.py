@@ -11,6 +11,7 @@ import re
 import traceback
 
 from app.integrations.supabase_client import supabase_client
+from app.integrations.evolution import evolution_client
 from app.core.model_manager import ModelManager
 from app.core.multimodal_processor import MultimodalProcessor
 from app.core.lead_manager import LeadManager
@@ -252,6 +253,47 @@ class AgenticSDRStateless:
                 return True
                 
         return False
+
+    async def _get_pushname_fallback(
+        self,
+        phone: str,
+        execution_context: Dict[str, Any]
+    ) -> Optional[str]:
+        """
+        Tenta obter um nome válido usando o pushName do contexto ou via Evolution API.
+        Retorna um nome limpo se conseguir, caso contrário retorna None.
+        """
+        # 1) Tentar pushName já presente no contexto
+        push_name = execution_context.get("pushName")
+        if push_name:
+            name = self._extract_name_from_response(push_name)
+            if name:
+                emoji_logger.system_info(f"🧩 Fallback de nome via pushName do contexto: {name}")
+                return name
+
+        # 2) Buscar nas mensagens recentes via Evolution API
+        try:
+            messages = await evolution_client.get_messages(phone, limit=10)
+            for msg in messages or []:
+                pn = None
+                if isinstance(msg, dict):
+                    if "pushName" in msg:
+                        pn = msg["pushName"]
+                    elif "pushname" in msg:
+                        pn = msg["pushname"]
+                    elif "key" in msg and isinstance(msg["key"], dict) and "pushName" in msg["key"]:
+                        pn = msg["key"]["pushName"]
+                    elif "message" in msg and isinstance(msg["message"], dict) and "pushName" in msg["message"]:
+                        pn = msg["message"]["pushName"]
+                if pn:
+                    name = self._extract_name_from_response(pn)
+                    if name:
+                        emoji_logger.system_info(f"🧩 Fallback de nome via Evolution pushName: {name}")
+                        return name
+        except Exception as e:
+            emoji_logger.system_warning(f"Falha ao obter pushName via Evolution: {e}")
+
+        return None
 
     async def initialize(self):
         """Inicialização dos módulos assíncronos"""
@@ -533,10 +575,87 @@ class AgenticSDRStateless:
                     emoji_logger.system_success(f"🚪 RETORNANDO resposta da coleta de nome para {extracted_name}")
                     return response, lead_info
                 else:
-                    # Nome não identificado ou inválido - tentar novamente
+                    # Nome não identificado ou inválido - tentar fallback via pushName
+                    fallback_name = await self._get_pushname_fallback(phone, execution_context)
+                    if fallback_name:
+                        emoji_logger.agentic_success(f"👤 Nome coletado por fallback: {fallback_name}")
+
+                        # Atualizar lead com nome e mover para INTERESTED
+                        await supabase_client.update_lead(lead_info["id"], {
+                            "name": fallback_name,
+                            "current_stage": "INTERESTED"
+                        })
+                        lead_info["name"] = fallback_name
+                        lead_info["current_stage"] = "INTERESTED"
+
+                        # Criar/atualizar no Kommo CRM
+                        if self.crm_service:
+                            try:
+                                emoji_logger.system_info(f"🏢 Criando lead '{fallback_name}' no Kommo CRM (fallback)...")
+                                kommo_response = await self.crm_service.create_lead(lead_info)
+                                if kommo_response.get("success"):
+                                    kommo_id = kommo_response.get("lead_id")
+                                    lead_info["kommo_lead_id"] = kommo_id
+                                    await supabase_client.update_lead(lead_info["id"], {"kommo_lead_id": kommo_id})
+                                    emoji_logger.team_crm(f"✅ Lead '{fallback_name}' criado no Kommo: ID {kommo_id}")
+                                else:
+                                    emoji_logger.system_warning(f"Erro ao criar '{fallback_name}' no Kommo (fallback)")
+                            except Exception as e:
+                                emoji_logger.system_error("AgenticSDRStateless", f"Falha ao criar no Kommo (fallback): {e}")
+
+                        # Enviar áudio personalizado
+                        emoji_logger.system_info(f"🎵 TENTANDO ENVIAR ÁUDIO para {fallback_name} (fallback de nome)")
+                        audio_sent = await self._handle_initial_trigger_audio(lead_info, phone, [])
+
+                        if audio_sent:
+                            context_msg = (
+                                f"SISTEMA: Nome coletado: {fallback_name}. Áudio foi enviado com sucesso. "
+                                f"Use os exemplos da ETAPA 1 do prompt: mencione o áudio do comandante e siga exatamente o fluxo de apresentação de soluções."
+                            )
+                            response = await self._generate_response(
+                                message=context_msg,
+                                context={},
+                                lead_info=lead_info,
+                                conversation_history=[],
+                                execution_context={},
+                                is_followup=True
+                            )
+                            emoji_logger.service_success(f"✅ Áudio + mensagem enviados para {fallback_name}")
+                        else:
+                            context_msg = (
+                                f"SISTEMA: Nome coletado: {fallback_name}. Áudio falhou - NÃO mencione áudio. "
+                                f"Use a ETAPA 1 do prompt para dar boas-vindas e seguir exatamente o fluxo de apresentação de soluções."
+                            )
+                            response = await self._generate_response(
+                                message=context_msg,
+                                context={},
+                                lead_info=lead_info,
+                                conversation_history=[],
+                                execution_context={},
+                                is_followup=True
+                            )
+                            emoji_logger.service_warning(f"⚠️ Apenas mensagem enviada para {fallback_name} (áudio falhou)")
+                            emoji_logger.system_debug(f"🔍 DEBUG: lead_info={lead_info}")
+
+                            # Mesmo sem áudio, mover para "Em Qualificação" pois nome foi coletado
+                            lead_info["current_stage"] = "EM_QUALIFICACAO"
+                            if lead_info.get("kommo_lead_id"):
+                                try:
+                                    await self.crm_service.update_lead_stage(
+                                        lead_id=str(lead_info["kommo_lead_id"]),
+                                        stage_name="em_qualificacao",
+                                        notes=f"Lead qualificado após coleta de nome (fallback): {fallback_name} (áudio falhou)",
+                                        phone_number=lead_info.get("phone_number")
+                                    )
+                                    emoji_logger.team_crm(f"✅ Lead {lead_info['kommo_lead_id']} movido para 'Em Qualificação' no Kommo (sem áudio)")
+                                except Exception as e:
+                                    emoji_logger.system_error("AgenticSDRStateless", f"Erro ao mover lead para Em Qualificação: {e}")
+
+                        emoji_logger.system_success(f"🚪 RETORNANDO resposta da coleta de nome (fallback) para {fallback_name}")
+                        return response, lead_info
+
+                    # Caso não haja fallback, solicitar novamente o nome
                     emoji_logger.system_warning(f"❓ Nome inválido detectado: '{message}' - solicitando novamente")
-                    
-                    # Mensagens variadas para diferentes situações
                     if len(message.strip()) < 3:
                         response = (
                             "Não entendi bem! Preciso do seu nome completo "

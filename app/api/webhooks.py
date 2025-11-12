@@ -664,13 +664,46 @@ async def create_agent_with_context(
         if conversation_id:
             conversation_history = await supabase_client.get_conversation_messages(conversation_id, limit=200)
 
+        # Tentativa de enriquecer contexto com pushName (fallback de nome)
+        push_name = None
+        try:
+            current_name = (lead_data or {}).get("name", "")
+            invalid_names = {"", None, "Lead Náutico", "N/A"}
+            if current_name in invalid_names:
+                # Buscar últimas mensagens para tentar extrair pushName
+                try:
+                    messages = await evolution_client.get_messages(phone, limit=10)
+                    for msg in messages or []:
+                        pn = None
+                        if isinstance(msg, dict):
+                            if "pushName" in msg:
+                                pn = msg["pushName"]
+                            elif "pushname" in msg:
+                                pn = msg["pushname"]
+                            elif "key" in msg and isinstance(msg["key"], dict) and "pushName" in msg["key"]:
+                                pn = msg["key"]["pushName"]
+                            elif "message" in msg and isinstance(msg["message"], dict) and "pushName" in msg["message"]:
+                                pn = msg["message"]["pushName"]
+                        if pn and isinstance(pn, str) and len(pn.strip()) >= 3:
+                            push_name = pn.strip()
+                            break
+                except Exception as e:
+                    emoji_logger.system_warning(f"Falha ao obter pushName via Evolution API: {e}")
+        except Exception:
+            # Não bloquear criação de contexto por erro não crítico
+            pass
+
+        if push_name:
+            emoji_logger.system_debug(f"🔎 pushName obtido para {phone}: '{push_name}'")
+
         execution_context = {
             "phone": phone,
             "lead_info": lead_data or {},
             "conversation_id": conversation_id,
             "conversation_history": conversation_history or [],
             "media": media_data,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "pushName": push_name
         }
 
         agent = AgenticSDRStateless()
