@@ -15,6 +15,7 @@ from app.utils.logger import emoji_logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 from tenacity import retry_if_exception_type
 from app.config import settings
+from app.services.message_splitter import MessageSplitter
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -36,6 +37,17 @@ class EvolutionAPIClient:
         self._circuit_breaker_failure_count = 0
         self._circuit_breaker_threshold = 5
         self._circuit_breaker_timeout = 60
+        # Inicializa splitter de mensagens com configurações atuais
+        try:
+            self._message_splitter = MessageSplitter(
+                max_length=settings.message_max_length,
+                add_indicators=settings.message_add_indicators,
+                enable_smart_splitting=settings.enable_smart_splitting,
+                smart_splitting_fallback=settings.smart_splitting_fallback
+            )
+        except Exception:
+            # Em caso de falha de import/instanciação, manter None para usar fallback por palavras
+            self._message_splitter = None
 
     def _create_client(self) -> httpx.AsyncClient:
         """Cria cliente HTTP com configuração otimizada"""
@@ -245,7 +257,7 @@ class EvolutionAPIClient:
     ) -> Dict[str, Any]:
         """
         Envia mensagem de texto com timing humanizado
-        Aplica limite de palavras (settings.message_max_words) dividindo em múltiplos envios
+        Aplica divisão inteligente por frases quando habilitado
         """
         try:
             phone = self._format_phone(phone)
@@ -270,9 +282,13 @@ class EvolutionAPIClient:
             if delay and delay > 0:
                 await asyncio.sleep(delay)
 
-            # Dividir mensagem por limite de palavras
-            max_words = getattr(settings, "message_max_words", 20)
-            chunks = self._split_text_by_word_limit(message, max_words)
+            # Dividir mensagem respeitando fim de frases (MessageSplitter) ou por palavras (fallback)
+            use_splitter = getattr(settings, "enable_message_splitter", True)
+            if use_splitter and self._message_splitter is not None:
+                chunks = self._message_splitter.split_message(message)
+            else:
+                max_words = getattr(settings, "message_max_words", 20)
+                chunks = self._split_text_by_word_limit(message, max_words)
             total = len(chunks)
             last_result: Dict[str, Any] = {}
 
@@ -541,9 +557,13 @@ class EvolutionAPIClient:
         try:
             phone = self._format_phone(phone)
 
-            # Dividir por limite de palavras
-            max_words = getattr(settings, "message_max_words", 20)
-            chunks = self._split_text_by_word_limit(text, max_words)
+            # Dividir por frases (MessageSplitter) ou por palavras (fallback)
+            use_splitter = getattr(settings, "enable_message_splitter", True)
+            if use_splitter and self._message_splitter is not None:
+                chunks = self._message_splitter.split_message(text)
+            else:
+                max_words = getattr(settings, "message_max_words", 20)
+                chunks = self._split_text_by_word_limit(text, max_words)
             total = len(chunks)
             last_result: Dict[str, Any] = {}
 
