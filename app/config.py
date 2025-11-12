@@ -261,6 +261,9 @@ class Settings(BaseSettings):
     message_max_length: int = Field(
         default=200, env="MESSAGE_MAX_LENGTH"
     )
+    message_max_words: int = Field(
+        default=20, env="MESSAGE_MAX_WORDS"
+    )
     message_chunk_delay: float = Field(
         default=0.8, env="MESSAGE_CHUNK_DELAY"
     )

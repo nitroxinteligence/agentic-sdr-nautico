@@ -245,6 +245,7 @@ class EvolutionAPIClient:
     ) -> Dict[str, Any]:
         """
         Envia mensagem de texto com timing humanizado
+        Aplica limite de palavras (settings.message_max_words) dividindo em múltiplos envios
         """
         try:
             phone = self._format_phone(phone)
@@ -265,76 +266,90 @@ class EvolutionAPIClient:
                         settings.response_delay_min,
                         settings.response_delay_max
                     )
-            if delay > 0:
+            # Delay inicial (pré-envio)
+            if delay and delay > 0:
                 await asyncio.sleep(delay)
-            if simulate_typing:
-                typing_duration = self._calculate_humanized_typing_duration(
-                    len(message)
+
+            # Dividir mensagem por limite de palavras
+            max_words = getattr(settings, "message_max_words", 20)
+            chunks = self._split_text_by_word_limit(message, max_words)
+            total = len(chunks)
+            last_result: Dict[str, Any] = {}
+
+            for idx, chunk in enumerate(chunks, start=1):
+                if simulate_typing:
+                    typing_duration = self._calculate_humanized_typing_duration(len(chunk))
+                    await self.send_typing(
+                        phone,
+                        len(chunk),
+                        duration_seconds=typing_duration,
+                        context="agent_response"
+                    )
+                    emoji_logger.system_debug(
+                        f"Aguardando {typing_duration:.1f}s de typing para parte {idx}/{total}"
+                    )
+                    await asyncio.sleep(typing_duration)
+
+                payload = {
+                    "number": phone,
+                    "text": chunk,
+                    "delay": int(settings.delay_between_messages * 1000)
+                }
+                response = await self._make_request(
+                    "post",
+                    f"/message/sendText/{self._encode_instance_name()}",
+                    json=payload
                 )
-                await self.send_typing(
-                    phone, len(message),
-                    duration_seconds=typing_duration,
-                    context="agent_response"
+                if response.status_code not in [200, 201]:
+                    error_text = response.text
+                    # Tratar especificamente erros 400 de números inexistentes
+                    if response.status_code == 400:
+                        try:
+                            error_data = response.json()
+                            if "message" in error_data and isinstance(error_data["message"], list):
+                                for msg in error_data["message"]:
+                                    if isinstance(msg, dict) and msg.get("exists") == False:
+                                        invalid_number = msg.get("number", phone)
+                                        emoji_logger.system_warning(
+                                            f"Número WhatsApp não existe: {invalid_number} - Não enviando mensagem"
+                                        )
+                                        return {
+                                            "success": False,
+                                            "error": "whatsapp_number_not_found",
+                                            "number": invalid_number,
+                                            "message": f"Número {invalid_number} não existe no WhatsApp"
+                                        }
+                        except (ValueError, KeyError):
+                            pass
+                    emoji_logger.system_error(
+                        "Evolution API",
+                        f"Evolution API retornou erro {response.status_code}: {error_text}"
+                    )
+                    raise Exception(
+                        f"Erro ao enviar mensagem: Status {response.status_code} - {error_text}"
+                    )
+
+                result = response.json()
+                if not result.get("key", {}).get("id"):
+                    emoji_logger.system_error(
+                        "Evolution API",
+                        f"Mensagem não enviada - sem ID na resposta: {result}"
+                    )
+                    raise Exception("Mensagem não foi enviada - resposta inválida da API")
+
+                emoji_logger.system_info(
+                    f"Evolution API - Mensagem enviada para {phone} parte {idx}/{total} (palavras: {len(chunk.split())}, delay inicial: {round(delay or 0, 2)}s)"
                 )
                 emoji_logger.system_debug(
-                    f"Aguardando {typing_duration:.1f}s de typing"
+                    f"Resposta da Evolution API (parte {idx}/{total}): {result}"
                 )
-                await asyncio.sleep(typing_duration)
-            payload = {
-                "number": phone,
-                "text": message,
-                "delay": int(settings.delay_between_messages * 1000)
-            }
-            response = await self._make_request(
-                "post", f"/message/sendText/{self._encode_instance_name()}", json=payload
-            )
-            if response.status_code not in [200, 201]:
-                error_text = response.text
-                
-                # Tratar especificamente erros 400 de números inexistentes
-                if response.status_code == 400:
-                    try:
-                        error_data = response.json()
-                        if "message" in error_data and isinstance(error_data["message"], list):
-                            for msg in error_data["message"]:
-                                if isinstance(msg, dict) and msg.get("exists") == False:
-                                    invalid_number = msg.get("number", phone)
-                                    emoji_logger.system_warning(
-                                        f"Número WhatsApp não existe: {invalid_number} - Não enviando mensagem"
-                                    )
-                                    return {
-                                        "success": False, 
-                                        "error": "whatsapp_number_not_found",
-                                        "number": invalid_number,
-                                        "message": f"Número {invalid_number} não existe no WhatsApp"
-                                    }
-                    except (ValueError, KeyError):
-                        # Se não conseguir parsear, continua com o tratamento padrão
-                        pass
-                
-                emoji_logger.system_error(
-                    "Evolution API",
-                    f"Evolution API retornou erro {response.status_code}: "
-                    f"{error_text}"
-                )
-                raise Exception(
-                    f"Erro ao enviar mensagem: Status {response.status_code} - "
-                    f"{error_text}"
-                )
-            result = response.json()
-            if not result.get("key", {}).get("id"):
-                emoji_logger.system_error(
-                    "Evolution API",
-                    f"Mensagem não enviada - sem ID na resposta: {result}"
-                )
-                raise Exception(
-                    "Mensagem não foi enviada - resposta inválida da API"
-                )
-            emoji_logger.system_info(
-                f"Evolution API - Mensagem de texto enviada para {phone} (tamanho: {len(message)}, delay: {round(delay, 2)}s)"
-            )
-            emoji_logger.system_debug(f"Resposta da Evolution API: {result}")
-            return result
+                last_result = result
+
+                # Atraso entre partes
+                if idx < total and settings.delay_between_messages > 0:
+                    await asyncio.sleep(settings.delay_between_messages)
+
+            return last_result
         except Exception as e:
             emoji_logger.system_error("Evolution API", f"Erro ao enviar mensagem: {e}")
             raise
@@ -365,6 +380,25 @@ class EvolutionAPIClient:
         duration = base_duration + random.uniform(-variation, variation)
         return max(1.0, min(duration, 15.0))
 
+    def _split_text_by_word_limit(self, text: str, max_words: int) -> List[str]:
+        """
+        Divide o texto em partes com até max_words palavras.
+        Mantém espaçamento simples e remove espaços nas bordas.
+        """
+        try:
+            if max_words <= 0:
+                return [text.strip()]
+            tokens = text.strip().split()
+            if len(tokens) <= max_words:
+                return [text.strip()]
+            chunks: List[str] = []
+            for i in range(0, len(tokens), max_words):
+                chunk = " ".join(tokens[i:i + max_words])
+                chunks.append(chunk)
+            return chunks
+        except Exception:
+            return [text.strip()]
+
     async def send_typing(
         self,
         phone: str,
@@ -373,7 +407,9 @@ class EvolutionAPIClient:
         context: str = "unknown"
     ):
         """
-        Simula digitação com timing dinâmico
+        Envia efeito de digitação (typing) com timing dinâmico.
+        Tenta usar o endpoint oficial da Evolution API (sendPresence) com
+        payload correto; em caso de erro, faz fallback para sleep local.
         """
         from app.services.typing_controller import (
             typing_controller, TypingContext
@@ -396,31 +432,52 @@ class EvolutionAPIClient:
             return
         try:
             phone = self._format_phone(phone)
-            if not duration_seconds:
-                duration = decision.duration or 2.0
-            else:
-                duration = duration_seconds
-            
-            # TEMPORARIAMENTE DESABILITADO: sendPresence causando muitos erros 400
-            # Substituindo por sleep simples até encontrar o formato correto
-            emoji_logger.system_debug(
-                f"Evolution API - Simulando typing para {phone} com sleep {duration:.1f}s (sendPresence desabilitado)"
-            )
-            await asyncio.sleep(duration)
-            
-            # TODO: Reativar sendPresence quando descobrir formato correto
-            # payload = {
-            #     "number": phone,
-            #     "presence": "composing"
+            duration = (duration_seconds if duration_seconds is not None
+                        else (decision.duration or 2.0))
+
+            # Tentar usar o endpoint oficial: /chat/sendPresence/{instance}
+            # Payload esperado (doc v2):
+            # {
+            #   "number": "5511999999999",
+            #   "options": { "delay": 1500, "presence": "composing", "number": "5511999999999" }
             # }
-            # await self._make_request(
-            #     "post",
-            #     f"/chat/sendPresence/{self._encode_instance_name()}",
-            #     json=payload
-            # )
+            payload = {
+                "number": phone,
+                "options": {
+                    "delay": int(max(0.0, duration) * 1000),
+                    "presence": "composing",
+                    "number": phone
+                }
+            }
+            try:
+                emoji_logger.system_debug(
+                    f"Evolution API - Enviando typing (sendPresence) para {phone} por {duration:.1f}s"
+                )
+                await self._make_request(
+                    "post",
+                    f"/chat/sendPresence/{self._encode_instance_name()}",
+                    json=payload
+                )
+                # Aguardar a duração para simular digitação antes de enviar texto
+                await asyncio.sleep(duration)
+                # Opcional: restaurar presença da instância como disponível
+                try:
+                    await self._make_request(
+                        "post",
+                        f"/instance/setPresence/{self._encode_instance_name()}",
+                        json={"presence": "available"}
+                    )
+                except Exception as e:
+                    logger.debug(f"Falha ao setPresence disponível (não crítico): {e}")
+            except Exception as e:
+                # Fallback: se o endpoint falhar, usar sleep local
+                emoji_logger.system_debug(
+                    f"Evolution API - Falha no sendPresence ({e}). Fazendo fallback para sleep {duration:.1f}s"
+                )
+                await asyncio.sleep(duration)
             
         except Exception as e:
-            emoji_logger.system_debug(f"Typing simulado via sleep: {e}")
+            emoji_logger.system_debug(f"Typing: erro inesperado ({e}). Continuando execução.")
             # Continuar mesmo em caso de erro
 
     async def send_reaction(self, phone: str, message_id: str, emoji: str):
@@ -482,58 +539,75 @@ class EvolutionAPIClient:
         """
         try:
             phone = self._format_phone(phone)
-            if simulate_typing:
-                typing_duration = self._calculate_humanized_typing_duration(
-                    len(text)
-                )
-                await self.send_typing(
-                    phone, len(text),
-                    duration_seconds=typing_duration,
-                    context="agent_response"
-                )
-                emoji_logger.system_debug(
-                    f"Aguardando {typing_duration:.1f}s de typing"
-                )
-                await asyncio.sleep(typing_duration)
-            payload = {
-                "number": phone,
-                "text": text,
-                "options": {
-                    "quoted": {
-                        "key": {
-                            "remoteJid": f"{phone}@s.whatsapp.net",
-                            "id": message_id
+
+            # Dividir por limite de palavras
+            max_words = getattr(settings, "message_max_words", 20)
+            chunks = self._split_text_by_word_limit(text, max_words)
+            total = len(chunks)
+            last_result: Dict[str, Any] = {}
+
+            for idx, chunk in enumerate(chunks, start=1):
+                if simulate_typing:
+                    typing_duration = self._calculate_humanized_typing_duration(len(chunk))
+                    await self.send_typing(
+                        phone,
+                        len(chunk),
+                        duration_seconds=typing_duration,
+                        context="agent_response"
+                    )
+                    emoji_logger.system_debug(
+                        f"Aguardando {typing_duration:.1f}s de typing para parte {idx}/{total}"
+                    )
+                    await asyncio.sleep(typing_duration)
+
+                options = {}
+                if idx == 1:
+                    options = {
+                        "quoted": {
+                            "key": {
+                                "remoteJid": f"{phone}@s.whatsapp.net",
+                                "id": message_id
+                            }
                         }
                     }
+
+                payload = {
+                    "number": phone,
+                    "text": chunk,
+                    "options": options
                 }
-            }
-            response = await self._make_request(
-                "post", f"/message/sendText/{self._encode_instance_name()}", json=payload
-            )
-            if response.status_code not in [200, 201]:
-                error_text = response.text
-                emoji_logger.system_error(
-                    "Evolution API",
-                    f"Evolution API retornou erro {response.status_code}: "
-                    f"{error_text}"
+                response = await self._make_request(
+                    "post",
+                    f"/message/sendText/{self._encode_instance_name()}",
+                    json=payload
                 )
-                raise Exception(
-                    f"Erro ao enviar resposta: Status {response.status_code} - "
-                    f"{error_text}"
+                if response.status_code not in [200, 201]:
+                    error_text = response.text
+                    emoji_logger.system_error(
+                        "Evolution API",
+                        f"Evolution API retornou erro {response.status_code}: {error_text}"
+                    )
+                    raise Exception(
+                        f"Erro ao enviar resposta: Status {response.status_code} - {error_text}"
+                    )
+
+                result = response.json()
+                if not result.get("key", {}).get("id"):
+                    emoji_logger.system_error(
+                        "Evolution API",
+                        f"Resposta não enviada - sem ID na resposta: {result}"
+                    )
+                    raise Exception("Resposta não foi enviada - resposta inválida da API")
+
+                emoji_logger.system_info(
+                    f"Evolution API - Resposta enviada para {phone} parte {idx}/{total} (palavras: {len(chunk.split())})"
                 )
-            result = response.json()
-            if not result.get("key", {}).get("id"):
-                emoji_logger.system_error(
-                    "Evolution API",
-                    f"Resposta não enviada - sem ID na resposta: {result}"
-                )
-                raise Exception(
-                    "Resposta não foi enviada - resposta inválida da API"
-                )
-            emoji_logger.system_info(
-                f"Evolution API - Resposta enviada para {phone} (tamanho: {len(text)})"
-            )
-            return result
+                last_result = result
+
+                if idx < total and settings.delay_between_messages > 0:
+                    await asyncio.sleep(settings.delay_between_messages)
+
+            return last_result
         except Exception as e:
             emoji_logger.system_error("Evolution API", f"Erro ao enviar resposta: {e}")
             raise
