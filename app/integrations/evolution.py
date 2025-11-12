@@ -436,18 +436,19 @@ class EvolutionAPIClient:
                         else (decision.duration or 2.0))
 
             # Tentar usar o endpoint oficial: /chat/sendPresence/{instance}
-            # Payload esperado (doc v2):
+            # De acordo com a validação da API (erro 400), os campos
+            # "presence" e "delay" devem estar no nível raiz do payload.
+            # Formato adotado:
             # {
             #   "number": "5511999999999",
-            #   "options": { "delay": 1500, "presence": "composing", "number": "5511999999999" }
+            #   "presence": "composing",
+            #   "delay": 2
             # }
             payload = {
                 "number": phone,
-                "options": {
-                    "delay": int(max(0.0, duration) * 1000),
-                    "presence": "composing",
-                    "number": phone
-                }
+                "presence": "composing",
+                # Usar segundos inteiros para compatibilidade com a API
+                "delay": int(max(1.0, round(duration)))
             }
             try:
                 emoji_logger.system_debug(
