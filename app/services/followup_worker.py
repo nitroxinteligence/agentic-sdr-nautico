@@ -84,7 +84,11 @@ class FollowUpWorker:
             from app.integrations.evolution import evolution_client
             send_result = await evolution_client.send_text_message(
                 phone=actual_task["phone_number"],
-                message=message_content
+                message=message_content,
+                simulate_typing=True,
+                split=True,
+                force_word_split=True,
+                max_words_override=20
             )
 
             if send_result and send_result.get("key", {}).get("id"):

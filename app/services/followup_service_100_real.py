@@ -161,6 +161,23 @@ class FollowUpServiceReal:
                 emoji_logger.service_error(f"❌ ERRO na validação final do lead: {e}")
                 return {"success": False, "error": "validation_failed"}
 
+            # Proteção anti-duplicidade: evitar múltiplos follow-ups iguais em janela próxima
+            try:
+                from datetime import timezone
+                window_start = (scheduled_time - timedelta(minutes=5)).astimezone(timezone.utc).isoformat()
+                window_end = (scheduled_time + timedelta(minutes=5)).astimezone(timezone.utc).isoformat()
+                existing = self.db.client.table('follow_ups').select('id, scheduled_at, status').eq('lead_id', supabase_lead_id).eq('status', 'pending').gte('scheduled_at', window_start).lte('scheduled_at', window_end).execute()
+                if existing.data:
+                    emoji_logger.service_info(f"🚫 DUPLICIDADE BLOQUEADA: Já existe follow-up pendente para lead {supabase_lead_id} na janela do agendamento")
+                    return {
+                        "success": False,
+                        "message": "Follow-up semelhante já pendente na janela",
+                        "reason": "duplicate_pending",
+                        "scheduled_at": scheduled_time.isoformat()
+                    }
+            except Exception:
+                pass
+
             followup_data = {
                 "lead_id": supabase_lead_id, "phone_number": clean_phone,
                 "message": message, "scheduled_at": scheduled_time.isoformat(),

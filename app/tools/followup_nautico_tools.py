@@ -1,6 +1,6 @@
 """
 Follow-up Tools Náutico - Sistema de follow-ups automáticos
-Implementa o protocolo do prompt atualizado:
+Implementa o protocolo atualizado:
 - 4h: "Opa, [Nome]! Passando só pra saber se ficou alguma dúvida..."
 - 24h: "E aí, tudo certo? Deu pra pensar na nossa conversa..."  
 - 48h: "Fala, [Nome]. Essa é minha última tentativa..." + Desqualificar
@@ -23,7 +23,6 @@ class FollowUpNauticoTools:
         
         # Templates de mensagem conforme novo prompt atualizado
         self.follow_up_templates = {
-            "30min": "Ei, {name}, só passando pra ver se ficou dúvida sobre apoiar o Náutico nessa reta final. Tô aqui!",
             "4h": "Opa, {name}! Alguma dúvida sobre nossa conversa? Tô aqui pra ajudar a fortalecer o Timba!",
             "24h": "E aí, tudo certo? Pensou sobre apoiar o Náutico rumo à Série B? Qualquer coisa, é só chamar.",
             "48h": "Fala, {name}. Última tentativa: quer se juntar ao Sócio Mais Fiel e apoiar o Timba? Grande abraço alvirrubro!"
@@ -35,8 +34,8 @@ class FollowUpNauticoTools:
         phone_number: str
     ) -> Dict[str, Any]:
         """
-        Agenda os 4 follow-ups automáticos do Náutico conforme novo protocolo:
-        30min -> 4h -> 24h -> 48h
+        Agenda os 3 follow-ups automáticos do Náutico:
+        4h -> 24h -> 48h
         """
         try:
             if not self.followup_service:
@@ -49,29 +48,7 @@ class FollowUpNauticoTools:
 
             scheduled_followups = []
 
-            # Follow-up 1: 30 minutos (NOVO)
-            message_30min = self.follow_up_templates["30min"].format(name=lead_name)
-            delay_30min_hours = settings.followup_delay_30min / 60
-            emoji_logger.service_info(f"🕐 Agendando follow-up 30min: delay={delay_30min_hours}h para {phone_number}")
-            
-            result_30min = await self.followup_service.schedule_followup(
-                phone_number=phone_number,
-                message=message_30min,
-                delay_hours=delay_30min_hours,  # Converter minutos para horas (0.5h)
-                lead_info=lead_info
-            )
-            
-            if result_30min.get("success"):
-                scheduled_followups.append({
-                    "delay": "30min", 
-                    "followup_id": result_30min.get("followup_id"),
-                    "message": message_30min
-                })
-                emoji_logger.service_success(f"✅ Follow-up 30min agendado com ID: {result_30min.get('followup_id')}")
-            else:
-                emoji_logger.service_error(f"❌ Falha ao agendar follow-up 30min: {result_30min}")
-
-            # Follow-up 2: 4 horas
+            # Follow-up 1: 4 horas
             message_4h = self.follow_up_templates["4h"].format(name=lead_name)
             result_4h = await self.followup_service.schedule_followup(
                 phone_number=phone_number,
@@ -86,7 +63,7 @@ class FollowUpNauticoTools:
                     "message": message_4h
                 })
 
-            # Follow-up 3: 24 horas  
+            # Follow-up 2: 24 horas  
             message_24h = self.follow_up_templates["24h"].format(name=lead_name)
             result_24h = await self.followup_service.schedule_followup(
                 phone_number=phone_number,
@@ -101,7 +78,7 @@ class FollowUpNauticoTools:
                     "message": message_24h
                 })
 
-            # Follow-up 4: 48 horas (último + desqualificar)
+            # Follow-up 3: 48 horas (último + desqualificar)
             message_48h = self.follow_up_templates["48h"].format(name=lead_name)
             result_48h = await self.followup_service.schedule_followup(
                 phone_number=phone_number,

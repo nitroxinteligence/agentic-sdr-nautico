@@ -253,7 +253,10 @@ class EvolutionAPIClient:
         phone: str,
         message: str,
         delay: Optional[float] = None,
-        simulate_typing: bool = True
+        simulate_typing: bool = True,
+        split: bool = True,
+        force_word_split: bool = False,
+        max_words_override: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Envia mensagem de texto com timing humanizado
@@ -282,13 +285,20 @@ class EvolutionAPIClient:
             if delay and delay > 0:
                 await asyncio.sleep(delay)
 
-            # Dividir mensagem respeitando fim de frases (MessageSplitter) ou por palavras (fallback)
-            use_splitter = getattr(settings, "enable_message_splitter", True)
-            if use_splitter and self._message_splitter is not None:
-                chunks = self._message_splitter.split_message(message)
+            # Dividir mensagem em partes apenas se habilitado
+            if split:
+                use_splitter = getattr(settings, "enable_message_splitter", True)
+                if not force_word_split and use_splitter and self._message_splitter is not None:
+                    chunks = self._message_splitter.split_message(message)
+                else:
+                    max_words = (
+                        max_words_override
+                        if max_words_override is not None
+                        else getattr(settings, "message_max_words", 20)
+                    )
+                    chunks = self._split_text_by_word_limit(message, max_words)
             else:
-                max_words = getattr(settings, "message_max_words", 20)
-                chunks = self._split_text_by_word_limit(message, max_words)
+                chunks = [message.strip()]
             total = len(chunks)
             last_result: Dict[str, Any] = {}
 
