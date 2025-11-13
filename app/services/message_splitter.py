@@ -127,14 +127,47 @@ class MessageSplitter:
             raise
 
     def _force_split_long_sentence(self, sentence: str) -> List[str]:
-        """Força divisão de frase muito longa"""
-        return (
-            self._split_with_regex(sentence) if HAS_REGEX
-            else self._split_simple(sentence)
-        )
+        """Força divisão de frase muito longa priorizando pontuação natural"""
+        chunks: List[str] = []
+        text = sentence.strip()
+        start = 0
+        n = len(text)
+        while start < n:
+            end = min(start + self.max_length, n)
+            window = text[start:end]
+            # Tentar ponto final/pergunta/exclamação/reticências primeiro
+            terminators = ['.', '!', '?', '…']
+            boundary = -1
+            for t in terminators:
+                pos = window.rfind(t)
+                if pos > boundary:
+                    boundary = pos
+            # Se não houver terminador, tentar separadores fortes
+            if boundary < 0:
+                separators = [',', ';', ':', '—', '–']
+                for sep in separators:
+                    pos = window.rfind(sep)
+                    if pos > boundary:
+                        boundary = pos
+            # Fallback para último espaço
+            if boundary < 0:
+                boundary = window.rfind(' ')
+            if boundary <= 0:
+                # Sem espaço ou pontuação dentro do limite, cortar seco
+                chunk = window.strip()
+                chunks.append(chunk)
+                start = end
+            else:
+                chunk = window[:boundary + 1].strip()
+                chunks.append(chunk)
+                start = start + boundary + 1
+                # Remover espaços iniciais do próximo trecho
+                while start < n and text[start].isspace():
+                    start += 1
+        return chunks
 
     def _split_with_regex(self, text: str) -> List[str]:
-        """Divide usando regex module (preserva emojis)"""
+        """Divide usando regex module (preserva emojis) com preferência por pontuação"""
         chunks, graphemes = [], regex.findall(r'\X', text)
         while graphemes:
             chunk_size = min(self.max_length, len(graphemes))
@@ -145,13 +178,24 @@ class MessageSplitter:
                 chunk_text += grapheme
                 chunk_count = i + 1
             if len(graphemes) > chunk_count and chunk_text:
-                last_space = -1
-                for i, grapheme in enumerate(graphemes[:chunk_count]):
-                    if grapheme.isspace():
-                        last_space = i + 1
-                if last_space > 0:
-                    chunk_text = ''.join(graphemes[:last_space]).rstrip()
-                    chunk_count = last_space
+                # Preferir terminar em pontuação dentro do limite
+                terminators = {'.', '!', '?', '…', ',', ';', ':'}
+                last_boundary = -1
+                for i, g in enumerate(graphemes[:chunk_count]):
+                    if g in terminators:
+                        last_boundary = i + 1
+                if last_boundary > 0:
+                    chunk_text = ''.join(graphemes[:last_boundary]).rstrip()
+                    chunk_count = last_boundary
+                else:
+                    # Fallback para último espaço
+                    last_space = -1
+                    for i, grapheme in enumerate(graphemes[:chunk_count]):
+                        if grapheme.isspace():
+                            last_space = i + 1
+                    if last_space > 0:
+                        chunk_text = ''.join(graphemes[:last_space]).rstrip()
+                        chunk_count = last_space
             chunk_text = chunk_text.strip()
             if chunk_text:
                 chunks.append(chunk_text)
@@ -216,4 +260,3 @@ def set_message_splitter(splitter: MessageSplitter) -> None:
     """Define instância global do splitter"""
     global message_splitter
     message_splitter = splitter
-
