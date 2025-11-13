@@ -22,6 +22,7 @@ from app.services.message_buffer import MessageBuffer, get_message_buffer
 from app.services.message_splitter import MessageSplitter, get_message_splitter
 from app.utils.agno_media_detection import AGNOMediaDetector
 from app.exceptions import HandoffActiveException
+from app.core.response_formatter import response_formatter
 
 router = APIRouter(prefix="/webhook", tags=["webhooks"])
 
@@ -600,6 +601,9 @@ def extract_final_response(full_response: str) -> str:
     
     # Limpar espaços
     final_response = clean_response.strip()
+
+    # Aplicar sanitização adicional centralizada para remover markdown e listas
+    final_response = response_formatter.ensure_response_tags(final_response)
 
     if not final_response or final_response.lower() == "none":
         emoji_logger.system_warning("A resposta estava vazia. Usando fallback.")

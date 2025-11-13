@@ -44,6 +44,44 @@ class ResponseFormatter:
                 flags=re.MULTILINE | re.IGNORECASE
             )
 
+        # Sanitize geral: remover markdown e listas/enumerações visíveis
+        # Remover code fences e backticks
+        clean_response = clean_response.replace('```', '')
+        clean_response = clean_response.replace('`', '')
+
+        # Remover cabeçalhos markdown (##, ###, etc.) no início das linhas
+        clean_response = re.sub(r'(?m)^\s*#{1,6}\s*', '', clean_response)
+
+        # Remover bullets e enumerações no início das linhas
+        def _strip_list_enumerations(text: str) -> str:
+            lines = text.splitlines()
+            cleaned_lines = []
+            for ln in lines:
+                l = re.sub(r'^\s*[-*•]\s+', '', ln)               # -, *, •
+                l = re.sub(r'^\s*\(?\d+\)?[\.|\)|-]\s+', '', l)  # 1., 1), (1) -
+                l = re.sub(r'^\s*[a-zA-Z]\)\s+', '', l)            # a), A)
+                # Remover linhas que são apenas enumeradores (ex.: "1.", "a)" ou "II")
+                if re.match(r'^\s*(\d+|[ivxlcdmIVXLCDM]+|[a-zA-Z])[\.|\)|-]?\s*$', l):
+                    l = ''
+                cleaned_lines.append(l.strip())
+            # Remover linhas vazias consecutivas
+            result = '\n'.join([cl for cl in cleaned_lines if cl])
+            result = re.sub(r'\n{3,}', '\n\n', result)
+            return result
+
+        clean_response = _strip_list_enumerations(clean_response)
+
+        # Remover ênfases Markdown inline: *texto*, **texto**, _texto_, __texto__
+        clean_response = re.sub(r'\*{1,3}(.+?)\*{1,3}', r'\1', clean_response)
+        clean_response = re.sub(r'_{1,3}(.+?)_{1,3}', r'\1', clean_response)
+
+        # Substituir traços isolados que simulam bullet dentro da linha
+        clean_response = re.sub(r'\s-\s', ' ', clean_response)
+
+        # Garantir pontuação final natural
+        if clean_response and not re.search(r'[\.!?]$', clean_response.strip()):
+            clean_response = clean_response.strip() + '.'
+
         # Se ficou vazio, usar fallback
         if not clean_response or len(clean_response) < 10:
             emoji_logger.system_warning("Resposta vazia após limpeza - usando fallback")
