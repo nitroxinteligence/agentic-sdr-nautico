@@ -532,7 +532,7 @@ class AgenticSDRStateless:
                     # Resposta adaptada: menciona áudio apenas se foi enviado com sucesso
                     if audio_sent:
                         # Usar LLM para gerar resposta de boas-vindas seguindo o prompt Laura
-                        context_msg = f"SISTEMA: Nome coletado: {extracted_name}. Áudio foi enviado com sucesso. Use os exemplos da ETAPA 1 do prompt: mencione o áudio do comandante e siga exatamente o fluxo de apresentação de soluções."
+                        context_msg = f"SISTEMA: Nome coletado: {extracted_name}. Áudio foi enviado com sucesso. NÃO se apresente novamente. Evite dizer 'Aqui é a Laura'. Use apenas uma saudação simples (se necessário) e conecte com o áudio do comandante, seguindo exatamente a ETAPA 1 do prompt para apresentação de soluções."
                         response = await self._generate_response(
                             message=context_msg,
                             context={},
@@ -544,7 +544,7 @@ class AgenticSDRStateless:
                         emoji_logger.service_success(f"✅ Áudio + mensagem enviados para {extracted_name}")
                     else:
                         # Usar LLM para gerar resposta de boas-vindas sem áudio
-                        context_msg = f"SISTEMA: Nome coletado: {extracted_name}. Áudio falhou - NÃO mencione áudio. Use a ETAPA 1 do prompt para dar boas-vindas e seguir exatamente o fluxo de apresentação de soluções."
+                        context_msg = f"SISTEMA: Nome coletado: {extracted_name}. Áudio falhou - NÃO mencione áudio. NÃO se apresente novamente. Evite dizer 'Aqui é a Laura'. Use a ETAPA 1 do prompt para dar boas-vindas e seguir exatamente o fluxo de apresentação de soluções sem reintrodução."
                         response = await self._generate_response(
                             message=context_msg,
                             context={},
@@ -610,7 +610,7 @@ class AgenticSDRStateless:
                         if audio_sent:
                             context_msg = (
                                 f"SISTEMA: Nome coletado: {fallback_name}. Áudio foi enviado com sucesso. "
-                                f"Use os exemplos da ETAPA 1 do prompt: mencione o áudio do comandante e siga exatamente o fluxo de apresentação de soluções."
+                                f"NÃO se apresente novamente. Evite dizer 'Aqui é a Laura'. Use os exemplos da ETAPA 1 do prompt: mencione o áudio do comandante e siga exatamente o fluxo de apresentação de soluções sem reintrodução."
                             )
                             response = await self._generate_response(
                                 message=context_msg,
@@ -624,7 +624,7 @@ class AgenticSDRStateless:
                         else:
                             context_msg = (
                                 f"SISTEMA: Nome coletado: {fallback_name}. Áudio falhou - NÃO mencione áudio. "
-                                f"Use a ETAPA 1 do prompt para dar boas-vindas e seguir exatamente o fluxo de apresentação de soluções."
+                                f"NÃO se apresente novamente. Evite dizer 'Aqui é a Laura'. Use a ETAPA 1 do prompt para dar boas-vindas e seguir exatamente o fluxo de apresentação de soluções sem reintrodução."
                             )
                             response = await self._generate_response(
                                 message=context_msg,
@@ -722,7 +722,7 @@ class AgenticSDRStateless:
                     emoji_logger.system_info(f"🎵 Áudio enviado! Gerando mensagem conectiva para {lead_info.get('name')}")
                     # Usar LLM para gerar resposta pós-áudio seguindo o prompt
                     response = await self._generate_response(
-                        message=f"SISTEMA: Áudio do comandante foi enviado com sucesso para {lead_info.get('name')}. Siga as ETAPAS DA CONVERSA para conectar com o áudio e apresentar soluções.",
+                        message=f"SISTEMA: Áudio do comandante foi enviado com sucesso para {lead_info.get('name')}. NÃO se apresente novamente. Evite dizer 'Aqui é a Laura'. Siga as ETAPAS DA CONVERSA para conectar com o áudio e apresentar soluções sem reintrodução.",
                         context={},
                         lead_info=lead_info,
                         conversation_history=[],
