@@ -1,8 +1,7 @@
 """
 Audio Transcription Service - Transcreve áudios do WhatsApp
-Prioridade: 1º Google Speech (gratuito), 2º OpenAI Whisper-1 (barato: $0.006/min)
+Engine único: OpenAI Whisper-1
 """
-import speech_recognition as sr
 from pydub import AudioSegment
 import io
 import base64
@@ -47,9 +46,6 @@ class AudioTranscriber:
 
     def __init__(self):
         """Inicializa o transcriber com Google e OpenAI como fallback"""
-        self.recognizer = sr.Recognizer()
-        self.recognizer.energy_threshold = 300
-        self.recognizer.pause_threshold = 0.8
         self.openai_available = False
         try:
             if hasattr(settings, 'openai_api_key') and settings.openai_api_key:
@@ -57,16 +53,16 @@ class AudioTranscriber:
                 self.openai_client = OpenAI(api_key=settings.openai_api_key)
                 self.openai_available = True
                 emoji_logger.system_info(
-                    "✅ AudioTranscriber com Google e Whisper"
+                    "✅ AudioTranscriber com Whisper-1 (OpenAI)"
                 )
             else:
                 emoji_logger.system_info(
-                    "AudioTranscriber usando apenas Google Speech"
+                    "❌ OPENAI_API_KEY ausente - Whisper indisponível"
                 )
         except Exception as e:
             logger.warning(f"⚠️ OpenAI não disponível para fallback: {e}")
             emoji_logger.system_info(
-                "AudioTranscriber usando apenas Google Speech"
+                "❌ Whisper indisponível"
             )
 
     async def transcribe_from_base64(
@@ -82,7 +78,7 @@ class AudioTranscriber:
             return {"text": "", "status": "error", "error": "Áudio vazio"}
         try:
             emoji_logger.system_info(
-                f"Iniciando transcrição de áudio ({mimetype})"
+                f"Iniciando transcrição de áudio ({mimetype}) via Whisper-1"
             )
             is_valid, format_type = validate_audio_base64(audio_base64)
             if not is_valid:
@@ -101,176 +97,59 @@ class AudioTranscriber:
                     "text": "", "status": "error",
                     "error": f"Erro ao decodificar: {e}"
                 }
+            # Converter com ffmpeg para WAV 16k mono e transcrever com Whisper
             try:
-                audio_format = (
-                    mimetype.split("/")[1] if "/" in mimetype else "ogg"
-                )
-                is_encrypted = False
-                if len(audio_bytes) > 4:
-                    magic = audio_bytes[:4]
-                    known_formats = [
-                        b'OggS', b'RIFF', b'\xff\xfb', b'\xff\xf3',
-                        b'\xff\xf2', b'ftyp', b'ID3'
-                    ]
-                    is_encrypted = not any(
-                        magic.startswith(fmt) for fmt in known_formats
+                if not self.openai_available:
+                    return {
+                        "text": "", "status": "error",
+                        "error": "OPENAI_API_KEY ausente"
+                    }
+                # Escrever bytes em arquivo temporário
+                audio_format = (mimetype.split("/")[1] if "/" in mimetype else "ogg")
+                with tempfile.NamedTemporaryFile(suffix=f".{audio_format}", delete=False) as temp_in:
+                    temp_in.write(audio_bytes)
+                    temp_in_path = temp_in.name
+                # Converter para WAV
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_out:
+                    temp_out_path = temp_out.name
+                cmd = [
+                    'ffmpeg', '-i', temp_in_path, '-acodec', 'pcm_s16le',
+                    '-ar', '16000', '-ac', '1', '-f', 'wav', '-loglevel', 'error', '-y', temp_out_path
+                ]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode != 0 or not os.path.exists(temp_out_path) or os.path.getsize(temp_out_path) == 0:
+                    raise Exception(f"ffmpeg falhou: {result.stderr}")
+                # Duração
+                audio_seg = AudioSegment.from_wav(temp_out_path)
+                duration_seconds = len(audio_seg) / 1000.0
+                # Whisper
+                with open(temp_out_path, 'rb') as audio_file:
+                    transcription = self.openai_client.audio.transcriptions.create(
+                        model='whisper-1', file=audio_file, language='pt'
                     )
-                    if is_encrypted:
-                        audio_format = "opus"
-                with tempfile.NamedTemporaryFile(
-                    suffix=f".{audio_format}", delete=False
-                ) as temp_audio:
-                    temp_audio.write(audio_bytes)
-                    temp_audio_path = temp_audio.name
-                audio = None
-                if ("opus" in mimetype.lower() or
-                        audio_format == "ogg" or is_encrypted):
-                    try:
-                        with tempfile.NamedTemporaryFile(
-                            suffix=".wav", delete=False
-                        ) as temp_wav:
-                            temp_wav_path = temp_wav.name
-                        cmd = [
-                            'ffmpeg', '-i', temp_audio_path, '-acodec',
-                            'pcm_s16le', '-ar', '16000', '-ac', '1', '-f',
-                            'wav', '-loglevel', 'error', '-y', temp_wav_path
-                        ]
-                        result = subprocess.run(
-                            cmd, capture_output=True, text=True, timeout=30
-                        )
-                        if result.returncode == 0:
-                            if (os.path.exists(temp_wav_path) and
-                                    os.path.getsize(temp_wav_path) > 0):
-                                audio = AudioSegment.from_wav(temp_wav_path)
-                            else:
-                                raise Exception("ffmpeg criou arquivo vazio")
-                            os.unlink(temp_wav_path)
-                        else:
-                            raise Exception(f"ffmpeg falhou: {result.stderr}")
-                    except Exception as e:
-                        logger.error(f"Erro ao converter com ffmpeg: {e}")
-                if audio is None:
-                    formats_to_try = [
-                        audio_format, "ogg", "mp3", "m4a", "wav"
-                    ]
-                    for fmt in formats_to_try:
-                        try:
-                            if fmt == "ogg":
-                                audio = AudioSegment.from_ogg(temp_audio_path)
-                            else:
-                                audio = AudioSegment.from_file(
-                                    temp_audio_path, format=fmt
-                                )
-                            break
-                        except Exception:
-                            continue
-                if audio is None:
-                    raise Exception("Não foi possível carregar o áudio")
-                wav_io = io.BytesIO()
-                audio.export(wav_io, format="wav")
-                wav_io.seek(0)
-                duration_seconds = len(audio) / 1000.0
-            except Exception as e:
-                logger.error(f"Erro ao converter áudio: {e}")
+                text = getattr(transcription, 'text', '') or ''
                 return {
-                    "text": "", "status": "error",
-                    "error": f"Erro ao processar: {e}"
+                    "text": text, "status": "success",
+                    "duration": duration_seconds,
+                    "language": language, "engine": "whisper-1"
                 }
-            finally:
-                if 'temp_audio_path' in locals():
-                    os.unlink(temp_audio_path)
-            wav_path_for_fallback = None
-            try:
-                with tempfile.NamedTemporaryFile(
-                    suffix=".wav", delete=False
-                ) as temp_wav_fallback:
-                    wav_path_for_fallback = temp_wav_fallback.name
-                    wav_io.seek(0)
-                    temp_wav_fallback.write(wav_io.read())
-                with sr.AudioFile(wav_io) as source:
-                    self.recognizer.adjust_for_ambient_noise(
-                        source, duration=0.5
-                    )
-                    audio_data = self.recognizer.record(source)
-                    try:
-                        text = self.recognizer.recognize_google(
-                            audio_data, language=language, show_all=False
-                        )
-                        return {
-                            "text": text, "status": "success",
-                            "duration": duration_seconds,
-                            "language": language, "engine": "google"
-                        }
-                    except sr.UnknownValueError:
-                        if self.openai_available and wav_path_for_fallback:
-                            try:
-                                with open(
-                                    wav_path_for_fallback, "rb"
-                                ) as audio_file:
-                                    transcription = (
-                                        self.openai_client.audio.transcriptions.create(
-                                            model="whisper-1",
-                                            file=audio_file,
-                                            language="pt"
-                                        )
-                                    )
-                                text = transcription.text
-                                return {
-                                    "text": text, "status": "success",
-                                    "duration": duration_seconds,
-                                    "language": language,
-                                    "engine": "whisper-1",
-                                    "note": "Transcrito com OpenAI Whisper"
-                                }
-                            except Exception as whisper_error:
-                                logger.error(f"Whisper falhou: {whisper_error}")
-                        return {
-                            "text": "[Áudio não compreendido]",
-                            "status": "unclear",
-                            "duration": duration_seconds,
-                            "language": language
-                        }
-                    except sr.RequestError as e:
-                        logger.error(f"Erro Google Speech: {e}")
-                        if self.openai_available and wav_path_for_fallback:
-                            try:
-                                with open(
-                                    wav_path_for_fallback, "rb"
-                                ) as audio_file:
-                                    transcription = (
-                                        self.openai_client.audio.transcriptions.create(
-                                            model="whisper-1",
-                                            file=audio_file,
-                                            language="pt"
-                                        )
-                                    )
-                                text = transcription.text
-                                return {
-                                    "text": text, "status": "success",
-                                    "duration": duration_seconds,
-                                    "language": language,
-                                    "engine": "whisper-1-fallback",
-                                    "note": "Google falhou, usado Whisper"
-                                }
-                            except Exception as whisper_error:
-                                logger.error(
-                                    f"Whisper falhou: {whisper_error}"
-                                )
-                        return {
-                            "text": "", "status": "error",
-                            "error": "Serviços de transcrição indisponíveis",
-                            "duration": duration_seconds
-                        }
             except Exception as e:
-                logger.error(f"Erro na transcrição: {e}")
+                logger.error(f"Erro Whisper: {e}")
                 return {
                     "text": "", "status": "error",
                     "error": f"Erro ao transcrever: {e}"
                 }
             finally:
-                if (wav_path_for_fallback and
-                        os.path.exists(wav_path_for_fallback)):
-                    os.unlink(wav_path_for_fallback)
+                try:
+                    if 'temp_in_path' in locals() and os.path.exists(temp_in_path):
+                        os.unlink(temp_in_path)
+                except Exception:
+                    pass
+                try:
+                    if 'temp_out_path' in locals() and os.path.exists(temp_out_path):
+                        os.unlink(temp_out_path)
+                except Exception:
+                    pass
         except Exception as e:
             logger.exception(f"Erro crítico no AudioTranscriber: {e}")
             return {
