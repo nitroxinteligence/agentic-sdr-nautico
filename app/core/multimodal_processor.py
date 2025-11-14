@@ -150,41 +150,39 @@ class MultimodalProcessor:
                 "success": False,
                 "message": "Transcrição de mensagens de voz está desabilitada"
             }
-            
         try:
-            if "base64," in audio_data:
-                audio_data = audio_data.split("base64,")[1]
-
-            audio_bytes = base64.b64decode(audio_data)
-            audio = AudioSegment.from_file(io.BytesIO(audio_bytes))
-
-            wav_buffer = io.BytesIO()
-            audio.export(wav_buffer, format="wav")
-            wav_buffer.seek(0)
-
-            recognizer = sr.Recognizer()
-            with sr.AudioFile(wav_buffer) as source:
-                audio_record = recognizer.record(source)
-                text = recognizer.recognize_google(
-                    audio_record, language="pt-BR"
-                )
-
-            result = {
-                "success": True,
-                "type": "audio",
-                "text": text,
-                "metadata": {
-                    "duration": len(audio) / 1000.0,
-                    "channels": audio.channels,
-                    "sample_rate": audio.frame_rate
-                }
-            }
-
-            emoji_logger.multimodal_event(
-                f"🎤 Áudio transcrito: {len(text)} caracteres"
+            from app.services.audio_transcriber import audio_transcriber
+            # Detectar mimetype básico se presente em data URL
+            mimetype = "audio/ogg"
+            if "data:" in audio_data and ";base64," in audio_data:
+                try:
+                    header = audio_data.split(";base64,")[0]
+                    if header.startswith("data:"):
+                        mimetype = header.replace("data:", "")
+                except Exception:
+                    pass
+            trans = await audio_transcriber.transcribe_from_base64(
+                audio_data, mimetype=mimetype, language="pt-BR"
             )
-            return result
-
+            if trans.get("status") in ["success", "unclear"]:
+                text = trans.get("text", "")
+                emoji_logger.multimodal_event(
+                    f"🎤 Áudio transcrito ({trans.get('engine','google')}): {len(text)} caracteres"
+                )
+                return {
+                    "success": True,
+                    "type": "audio",
+                    "text": text,
+                    "metadata": {
+                        "duration": trans.get("duration"),
+                        "engine": trans.get("engine"),
+                        "language": trans.get("language", "pt-BR")
+                    }
+                }
+            return {
+                "success": False,
+                "message": trans.get("error", "Falha ao transcrever"),
+            }
         except Exception as e:
             emoji_logger.service_error(f"Erro ao processar áudio: {e}")
             return {

@@ -833,6 +833,20 @@ class AgenticSDRStateless:
             emoji_logger.system_info(f"🔍 INICIANDO PROCESSAMENTO MÍDIA: mime_type={mime_type}")
             media_result = await self.multimodal.process_media(media_data)
             emoji_logger.system_info(f"🔍 RESULTADO PROCESSAMENTO: success={media_result.get('success')}")
+            # Injetar transcrição de áudio como texto adicional para o LLM
+            try:
+                if media_result.get('success') and media_result.get('type') == 'audio':
+                    audio_text = media_result.get('text', '').strip()
+                    if audio_text:
+                        user_message_content.append({
+                            "type": "text",
+                            "text": f"[Áudio] {audio_text}"
+                        })
+                        emoji_logger.multimodal_event(
+                            f"📝 Transcrição injetada no histórico ({len(audio_text)} chars)"
+                        )
+            except Exception as ie:
+                emoji_logger.system_warning(f"Falha ao injetar transcrição no histórico: {ie}")
             if media_result.get("success"):
                 analysis = media_result.get("analysis", {})
                 
