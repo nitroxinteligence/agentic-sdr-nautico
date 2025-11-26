@@ -760,7 +760,7 @@ class AgenticSDRStateless:
                 emoji_logger.system_info(f"🔇 PROTOCOLO SILÊNCIO - Ativado para {phone}. Nenhuma mensagem será enviada.")
                 return "<SILENCE>", lead_info
 
-            final_response = response_formatter.ensure_response_tags(response)
+            final_response = response_formatter.ensure_response_tags(response, lead_info)
             # ANÁLISE DA RESPOSTA PARA AÇÕES DO CRM
             await self._execute_crm_actions_from_response(final_response, lead_info, execution_context)
             
@@ -1448,16 +1448,33 @@ class AgenticSDRStateless:
             payment_context = f"<contexto_pagamento>\nEste lead NÃO tem comprovante de pagamento validado. JAMAIS confirme pagamento sem receber e validar documento. Sempre solicite o comprovante antes de qualquer confirmação.\n</contexto_pagamento>\n\n"
         
         # Reforçar instruções críticas sobre persona e ferramentas (sem conflitar com o prompt)
-        critical_instructions = """
+        lead_name = lead_info.get('name', '')
+        name_instruction = ""
+
+        if lead_name and lead_name not in ["Lead Náutico", "Usuário Náutico", "Cliente Náutico"]:
+            name_instruction = f"""
+<nome_do_lead>
+O nome do lead é: {lead_name}
+IMPORTANTE: Sempre que mencionar o nome do lead, use EXATAMENTE "{lead_name}" - NUNCA use placeholders como [nome], {{nome}}, $nome ou <nome>.
+</nome_do_lead>
+"""
+
+        critical_instructions = f"""
 
 <instrucoes_criticas>
 - Você é Laura, Especialista em Relacionamento da Torcida do Náutico (NÃO Marina)
 - SEMPRE use a ferramenta [TOOL: knowledge.search | query=...] para perguntas sobre planos, ingressos, benefícios, cancelamentos
 - Siga exatamente a persona e etapas definidas no prompt principal
 - Responda de forma direta, sem formatação markdown
+
+**REGRA CRÍTICA DE PLACEHOLDERS:**
+- JAMAIS use placeholders como [nome], {{nome}}, $nome ou <nome> em suas respostas
+- SEMPRE use o nome REAL do lead quando disponível
+- Se o nome do lead estiver disponível, use-o diretamente: "Oi, {lead_name}!" (exemplo)
+- Se não souber o nome, simplesmente não use nome nenhum: "Oi!" ao invés de "Oi, [nome]!"
 </instrucoes_criticas>
 
-"""
+{name_instruction}"""
 
         system_prompt_with_context = system_prompt + date_context + payment_context + critical_instructions
 
@@ -1489,6 +1506,21 @@ class AgenticSDRStateless:
             system_prompt=system_prompt_with_context
         )
 
+        # VALIDAÇÃO CRÍTICA: Verificar se response_text contém placeholders e substituir imediatamente
+        if response_text and lead_info.get('name'):
+            placeholder_patterns = [r'\[nome\]', r'\{nome\}', r'\$nome', r'<nome>']
+            has_placeholder = any(re.search(pattern, response_text, re.IGNORECASE) for pattern in placeholder_patterns)
+
+            if has_placeholder:
+                emoji_logger.system_warning(
+                    f"⚠️ PLACEHOLDER DETECTADO na resposta do LLM: '{response_text[:100]}...'"
+                )
+                # Substituir imediatamente
+                response_text = ResponseFormatter.replace_placeholders(response_text, lead_info)
+                emoji_logger.system_success(
+                    f"✅ Placeholders substituídos por '{lead_info.get('name')}'"
+                )
+
         if response_text:
             # 5. Analisa e executa ferramentas, se houver.
             tool_results = await self._parse_and_execute_tools(
@@ -1513,7 +1545,21 @@ class AgenticSDRStateless:
                     messages=messages_for_final_response,
                     system_prompt=system_prompt_with_context # Reutiliza o mesmo system_prompt com contexto
                 )
-                
+
+                # VALIDAÇÃO CRÍTICA: Verificar placeholders na segunda resposta também
+                if response_text and lead_info.get('name'):
+                    placeholder_patterns = [r'\[nome\]', r'\{nome\}', r'\$nome', r'<nome>']
+                    has_placeholder = any(re.search(pattern, response_text, re.IGNORECASE) for pattern in placeholder_patterns)
+
+                    if has_placeholder:
+                        emoji_logger.system_warning(
+                            f"⚠️ PLACEHOLDER DETECTADO na 2ª resposta do LLM: '{response_text[:100]}...'"
+                        )
+                        response_text = ResponseFormatter.replace_placeholders(response_text, lead_info)
+                        emoji_logger.system_success(
+                            f"✅ Placeholders substituídos por '{lead_info.get('name')}' (2ª chamada)"
+                        )
+
                 # CORREÇÃO DEFINITIVA: Validar resposta após execução de tools
                 if not response_text:
                     emoji_logger.system_error(

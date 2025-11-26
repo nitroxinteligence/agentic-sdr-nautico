@@ -14,19 +14,72 @@ class ResponseFormatter:
     """
 
     @staticmethod
-    def ensure_response_tags(response: str) -> str:
+    def replace_placeholders(response: str, lead_info: dict) -> str:
+        """
+        CRÍTICO: Substitui placeholders por valores reais do lead
+        Garante que NUNCA enviamos placeholders para o usuário
+        """
+        if not response:
+            return response
+
+        # Extrair nome do lead
+        name = lead_info.get("name", "")
+
+        # Se não tem nome válido, não fazer substituição (evitar bugs)
+        if not name or name in ["Lead Náutico", "Usuário Náutico", "Cliente Náutico"]:
+            # Se encontrar placeholder sem nome válido, remover a frase inteira
+            if "[nome]" in response.lower():
+                emoji_logger.system_warning(
+                    f"⚠️ PLACEHOLDER DETECTADO SEM NOME VÁLIDO - Removendo menções"
+                )
+                # Remover padrões comuns com placeholder
+                response = re.sub(r',?\s*\[nome\]', '', response, flags=re.IGNORECASE)
+                response = re.sub(r'Oi,?\s*\[nome\][!,.\s]*', 'Oi! ', response, flags=re.IGNORECASE)
+                response = re.sub(r'Olá,?\s*\[nome\][!,.\s]*', 'Olá! ', response, flags=re.IGNORECASE)
+                response = re.sub(r'Desculpe,?\s*\[nome\][!,.\s]*', 'Desculpe! ', response, flags=re.IGNORECASE)
+                return response.strip()
+            return response
+
+        # Substituir todos os placeholders pelo nome real
+        original_response = response
+
+        # Padrões de placeholder a substituir
+        placeholder_patterns = [
+            (r'\[nome\]', name),
+            (r'\{nome\}', name),
+            (r'\$nome', name),
+            (r'<nome>', name),
+        ]
+
+        for pattern, replacement in placeholder_patterns:
+            response = re.sub(pattern, replacement, response, flags=re.IGNORECASE)
+
+        # Log se houve substituição
+        if response != original_response:
+            emoji_logger.system_success(
+                f"✅ Placeholders substituídos por '{name}'"
+            )
+
+        return response
+
+    @staticmethod
+    def ensure_response_tags(response: str, lead_info: dict = None) -> str:
         """
         Processa resposta e remove tags desnecessárias
         Retorna texto limpo e direto
         """
         if not response:
             return "Olá! Aqui é Laura, do Náutico! Como posso te ajudar?"
-        
+
         # CRÍTICO: Detecta se a resposta contém uma tool e NÃO a processa
         tool_pattern = r'\[\w+[:\.].*?\]'
         if re.search(tool_pattern, response):
             emoji_logger.system_debug("🔧 Tool detectada na resposta - não processando")
             return response
+
+        # PASSO 1: SUBSTITUIR PLACEHOLDERS POR VALORES REAIS (ANTES DE QUALQUER LIMPEZA)
+        if lead_info:
+            response = ResponseFormatter.replace_placeholders(response, lead_info)
 
         # Remove todas as tags RESPOSTA_FINAL existentes
         clean_response = re.sub(r'</?RESPOSTA_FINAL>', '', response, flags=re.IGNORECASE)
