@@ -187,3 +187,11 @@ cache/
 # Temporary directories
 tmp/
 temp/
+
+# Project-specific directories
+/tests/
+/sqls/
+/logs/
+/docs/
+/.trae/
+/.claude/
